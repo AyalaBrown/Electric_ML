@@ -1,3 +1,5 @@
+import readData from 'readingXl.js'
+import runModel from 'models.js'
 const tf = require('@tensorflow/tfjs');
 const { request } = require('express');
 // const mssql = require('mssql');
@@ -11,24 +13,6 @@ const fs = require('fs');
 const path = require('path');
 const math = require('mathjs');
 
-// const server = '192.168.16.3';
-// const database = 'electric_ML';
-// const port = '';
-// const username = 'Ayala';
-// const password = 'isr1953';
-
-// const config = {
-//   user: username,
-//   password: password,
-//   server: server,
-//   database: database,
-//   options: {
-//     encrypt: true,
-//   },
-// };
-
-// const connStr = `http://${username}:${password}@${server}:1433/${database}`;
-
 function calculateRSquared(yTrue, yPred) {
     const yTrueMean = tf.mean(yTrue);
     const totalSumOfSquares = tf.sum(tf.square(tf.sub(yTrue, yTrueMean)));
@@ -37,194 +21,11 @@ function calculateRSquared(yTrue, yPred) {
     return rSquared.dataSync()[0];
 }
 
-async function readData(excelFilePath) {
-    const workbook = new ExcelJS.Workbook();
-    await workbook.xlsx.readFile(excelFilePath);
-
-    const sheetName = 'Sheet1';
-    const worksheet = workbook.getWorksheet(sheetName);
-
-    if (!worksheet) {
-        throw new Error(`Worksheet '${sheetName}' not found in the workbook.`);
-    }
-
-    const data = [];
-    let headers = null;
-
-    worksheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
-        const rowData = {};
-
-        if (!headers) {
-            headers = row.values.map(String);
-            return;
-        }
-
-        row.eachCell({ includeEmpty: false }, (cell, colNumber) => {
-            const header = headers[colNumber];
-            rowData[header] = cell.value;
-        });
-
-        data.push(rowData);
-    });
-
-    return data;
-}
-
-
 const excelFilePath = './data.xlsx';
 
-async function training(){
-    const data = await readData(excelFilePath);
+const data = await readData(excelFilePath);
 
-    const uniqueIdtags = [...new Set(data.map(row => row.idtag))];
-
-    // bus="14:1F:BA:13:8E:F6";
-    // bus = "14:1F:BA:10:C6:94";
-    bus = "14:1F:BA:10:7F:79"
-
-    // levels:
-    // -140-170 : high
-    // -107-135: medium
-    // -95-106: low
-    // -70-90: very low
-    // -40-45: very very low
-
-    // charge = 290
-    const xmlData = {
-        buses: []
-    };
-
-
-
-    // for (const bus of uniqueIdtags) {
-
-        const filteredD = data.filter((row) => row.idtag === bus);
-        const filteredData = filteredD.filter((row) => row.epcRowId === charge);
-        const _x = tf.tensor2d(filteredData.map((row) => [row.soc]), [filteredData.length, 1]).arraySync();
-        const _y = tf.tensor2d(filteredData.map((row) => [row.scaled]/60), [filteredData.length, 1]).arraySync();
-        console.log(_x, _y);
-        plotGraph(_x, _y);
-
-        if (filteredData.length === 0) {
-            console.log(`No rows found with idtag ${bus}.`);
-            return;
-        }
-        // for(const state of )
-        const X = tf.tensor2d(filteredData.map((row) => [row.soc]), [filteredData.length, 1]);
-        const y = tf.tensor2d(filteredData.map((row) => [row.accDiff]/60),  [filteredData.length, 1]);
-        const y_s = tf.tensor2d(filteredData.map((row) => [row.scaled]/60),  [filteredData.length, 1]);
-
-        const { mean: X_mean, variance: X_variance } = tf.moments(X, 0);
-        const X_normalized = tf.div(tf.sub(X, X_mean), tf.sqrt(X_variance.add(1e-8)));
-
-        const { mean: y_mean, variance: y_variance } = tf.moments(y_s, 0);
-        const y_s_normalized = tf.div(tf.sub(y_s, y_mean), tf.sqrt(y_variance.add(1e-8)));
-
-        const splitRatio = 0.8;
-        const totalSamples = X_normalized.shape[0];
-        const trainSize = Math.floor(splitRatio * totalSamples);
-
-        const indices = tf.util.createShuffledIndices(totalSamples);
-        const trainIndices = indices.slice(0, trainSize);
-        const testIndices = indices.slice(trainSize);
-
-        const trainIndicesArray = Array.from(trainIndices);
-        const testIndicesArray = Array.from(testIndices);
-
-
-        const X_train = tf.gather(X_normalized, trainIndicesArray);
-        const y_train = tf.gather(y_s_normalized, trainIndicesArray);
-        const X_test = tf.gather(X_normalized, testIndicesArray);
-        const y_test = tf.gather(y_s, testIndicesArray);
-
-        const model = tf.sequential({
-            layers: [
-            tf.layers.dense({inputShape: [X_train.shape[1]], units: 100, activation: 'relu'}),
-            tf.layers.dense({units: 50, activation: 'relu'}),
-            tf.layers.dense({units: 25, activation: 'relu'}),
-            tf.layers.dense({units: 1}),
-            ]
-        });
-
-        model.summary();
-
-        model.compile({
-            loss: 'meanSquaredError', 
-            optimizer: tf.train.adam(0.01), 
-            metrics: ['mse']
-        });
-
-        const history = await model.fit(X_train, y_train, {
-            epochs: 20,
-            batchSize: 32,
-            shuffle: true,
-        });
-
-        // console.log('Training History:', history.history);
-
-        // const historyDataFrame = tf.data.array(history.history);
-
-        // const modelSavePath = path.resolve('./models');
-
-        // if (!fs.existsSync(modelSavePath)) {
-        //     fs.mkdirSync(modelSavePath, { recursive: true });
-        //   }
-
-        // const modelFilePath = path.join(modelSavePath, 'model');
-
-        // await model.save(`file://${modelFilePath}`);
-
-        const predictions_normalized = model.predict(X_test);
-        const predictions = tf.mul(predictions_normalized, tf.sqrt(y_variance.add(1e-8))).add(y_mean);
-
-        const predictedValues = await predictions.array();
-
-        const mse = tf.metrics.meanSquaredError(y_test, predictedValues).dataSync()[0];
-        const rSquared = calculateRSquared(y_test, predictedValues);
-
-        console.log(`Bus: ${bus}, Mean Squared Error (MSE): ${mse}, R-squared: ${rSquared}`);
-
-        let XTest;
-        if (X_test && X_mean && X_variance) {
-            const X_test_denormalized = tf.mul(X_test, tf.sqrt(X_variance.add(1e-8))).add(X_mean);
-            XTest = await X_test_denormalized.array();
-        } else {
-            XTest = X_test;
-        }
-
-        const pairs = XTest.map((item, index) => [item[0], predictedValues[index][0]]);
-
-        // Sort the pairs by XTest
-        pairs.sort((a, b) => a[0] - b[0]);
-
-        const pairsMap = new Map(pairs);
-        const uniquePairs = Array.from(pairsMap.entries());
-
-        // Separate the sorted pairs for the return
-        const sortedXTest = uniquePairs.map(pair => pair[0]);
-        const sortedPredictions = uniquePairs.map(pair => pair[1]);
-
-        const XTest_sort = sortedXTest.map(item => item).join(',');
-
-        const predictedValuesString = sortedPredictions.map(item => item).join(',');
-
-        xmlData.buses.push({
-            idtag: bus,
-            X: XTest_sort,
-            y: predictedValuesString,
-            score:rSquared
-        });
-
-    // }
-
-    const builder = new Builder();
-    const xml = builder.buildObject(xmlData);
-
-    fs.writeFileSync('./predictions.xml', xml);
-
-}
-
-training()
+runModel(data);
 
 async function readingFromXml(bus, path) {
     const xmlData = fs.readFileSync(path, 'utf-8');
