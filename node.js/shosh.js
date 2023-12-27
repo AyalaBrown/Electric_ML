@@ -212,6 +212,11 @@ async function setModel(post) {
 
         outputTestingData = normelizeData(_testingData, output, "output", outputData, multiplier);
 
+        trainingData = trainingData.reshape([trainingData.shape[0],1])
+        outputTrainingData = outputTrainingData.reshape([outputTrainingData.shape[0],1]);
+    
+    
+
 
         let model = tf.sequential();
         // console.log("Im here!!")
@@ -221,7 +226,7 @@ async function setModel(post) {
         // Create neural network
         for (let i = 0; i < dense.length; i++) {
             model.add(tf.layers.dense({
-                inputShape: [dense[i]["input"]],
+                inputShape: [trainingData.shape[1]],
                 activation: dense[i]["activisionFunction"] !== 'NONE' ? dense[i]["activisionFunction"].toLowerCase() : undefined,
                 units: dense[i]["output"],
             }));

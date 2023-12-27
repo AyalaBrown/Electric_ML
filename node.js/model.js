@@ -1,5 +1,6 @@
 const tf = require('@tensorflow/tfjs');
 const {setModel} = require('./shosh.js');
+const {training} = require('./wish.js')
 
 function minMaxNormalization(data) {
     const min = Math.min(...data);
@@ -44,23 +45,28 @@ async function runModel(data) {
                     dense: [
                         {
                             input:input_layer,
-                            activisionFunction: 'relu',
+                            activisionFunction: 'SILU',
                             output:100
                         },
                         {
                             input:100,
-                            activisionFunction: 'relu',
+                            activisionFunction: 'SILU',
                             output:50
                         },
                         {
                             input:50,
-                            activisionFunction: 'relu',
+                            activisionFunction: 'SILU',
+                            output:25
+                        },
+                        {
+                            input:25,
+                            activisionFunction: 'LINEAR',
                             output:1
                         }
                     ],
                     settingsData:{
                         epochs: 20,
-                        multiplier: 0.01,
+                        multiplier: 1,
                         percentOfTesting: 20,
                         minCycles: 50,
                         numCyclesCheck: 5
@@ -68,13 +74,13 @@ async function runModel(data) {
                     input: [
                         {
                             name:'soc',
-                            typeOfNormalize: 'MIN_MAX'
+                            typeOfNormalize: 'STD_AVG'
                         }
                     ],
                     output: [
                         {
                             name:'scaled',
-                            typeOfNormalize:'MIN_MAX'
+                            typeOfNormalize:'STD_AVG'
                         }
                     ]
                 },
@@ -83,7 +89,7 @@ async function runModel(data) {
             const jsonString = JSON.stringify(post, null, 2);
             // console.log(jsonString);
             // console.log(post["setting"])
-            setModel(post);
+            training(post);
             // const builder = new Builder();
             // const xml = builder.buildObject(xmlData);
         

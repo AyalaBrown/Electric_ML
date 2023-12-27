@@ -109,6 +109,11 @@ async function training(){
         const X_test = tf.gather(X_normalized, testIndicesArray);
         const y_test = tf.gather(y, testIndicesArray);
 
+        console.log("trainingData: ", X_train.shape)
+        console.log("outputTrainingData: ", y_train)
+        console.log("testingData: ", X_test)
+        console.log("outputTestingData: ", y_test)
+
         const model = tf.sequential({
             layers: [
             tf.layers.dense({inputShape: [X_train.shape[1]], units: 100, activation: 'relu'}),
@@ -246,9 +251,6 @@ function plotGraph(x, y){
         name: 'line'
     }]);
 }
-
-
-
 
 async function timeRange(bus, start, end, path) {
 
