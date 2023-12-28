@@ -7,11 +7,11 @@ const data = {
     $: { type: 'neural net' },
     inputs: {
       input: [
-        { $: { name: 'soc', decrement: '1.000000', devider: '6.000000', type: 'CONSTANT' } },
+        { $: { name: 'soc', min: '1.000000', max: '6.000000', type: 'CONSTANT' } },
       ],
     },
     outputs: {
-      output: { $: { name: 'charging_time', error: '0.03', decrement: '0.000000', devider: '30.000000', type: 'CONSTANT' } },
+      output: { $: { name: 'charging_time', error: '0.03', min: '0.000000', max: '30.000000', type: 'CONSTANT' } },
     },
     net: {
       layer: [

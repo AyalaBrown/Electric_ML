@@ -1,9 +1,7 @@
 const { readData } =require('./readingXl.js');
 const { runModel } = require('./model.js');
-const tf = require('@tensorflow/tfjs');
 const { plot } = require('nodeplotlib');
 const Spline = require('cubic-spline');
-const ExcelJS = require('exceljs');
 const { normalize } = require('normalize');
 const { Builder, parseString  } = require('xml2js');
 const fs = require('fs');

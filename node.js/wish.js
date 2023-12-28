@@ -1,14 +1,5 @@
 const tf = require('@tensorflow/tfjs');
-const { request } = require('express');
-const Plotly = require('plotly')('bAyala', '4DFS7mOSfInvya0GIawe');
-const { plot } = require('nodeplotlib');
-const Spline = require('cubic-spline');
-const ExcelJS = require('exceljs');
-const { normalize } = require('normalize');
-const { Builder, parseString , xml2js } = require('xml2js');
-const fs = require('fs');
-const path = require('path');
-const math = require('mathjs');
+const { Builder} = require('xml2js');
 
 function calculateRSquared(yTrue, yPred) {
     const yTrueMean = tf.mean(yTrue);
@@ -32,7 +23,6 @@ function getAvg(array) {
 }
 
 function stdAvg(data, name, multiplier) {
-    console.log(data);
     return {
         "name": name,
         "std": getStandardDeviation(data.flatMap(i => (i[name]))),
@@ -96,6 +86,28 @@ function normelizeData(_trainingData, input, nameOutputData, outputData, multipl
     ));
 }
 
+async function fittingModel(model, trainingData, outputTrainingData, dataEpochs, testingData, outputTestingData) {
+    // console.log("fitting...")
+    // console.log(model, trainingData, outputTrainingData, dataEpochs, testingData, outputTestingData)
+    let valHistory = [];
+    try {
+        await model.fit(trainingData, outputTrainingData, { epochs: dataEpochs, validationData: [testingData, outputTestingData] }).then((h) => {
+            for (let i = 0; i < dataEpochs; i++) {
+                h.history.val_loss.forEach(val_loss => {
+                    valHistory.push(val_loss);
+                });
+            }
+        });
+    } catch (error) {
+        throw error.message + " train model ERROR";
+    }
+    return valHistory;
+}
+
+let dataRet = {
+    status: '',
+}
+
 async function training(post){
 
     let data = post["data"],
@@ -119,7 +131,8 @@ async function training(post){
     testingData,
     outputTestingData,
     output = post["setting"]["output"],
-    input = post["setting"]["input"]
+    input = post["setting"]["input"],
+    inputLayerSize = post["setting"]["inputLayerSize"]
 
     // try {
     if (typeof multiplier === 'string' || multiplier instanceof String)
@@ -150,7 +163,7 @@ async function training(post){
                 }
             }
         }
-        console.log("input",obj)
+
         outputData.model.inputs.input.push(obj);
     }
 
@@ -161,6 +174,7 @@ async function training(post){
             obj = {
                 '$': {
                     name: d.name,
+                    error: "",
                     std: d.std,
                     avg:  d.avg,
                     multiplier: d.multiplier,
@@ -173,19 +187,19 @@ async function training(post){
             obj = {
                 '$': {
                     name: d.name,
+                    error: "",
                     min: d.min,
                     max:  d.max,
                     type: 'MINMAX'
                 }
             }
         }
-        console.log("output",obj)
         outputData.model.outputs.output.push(obj);
     }
 
-    let X_normalized = normelizeData(_trainingData, input, "input", outputData, multiplier).reshape([dense[0]["input"]]);
+    let X_normalized = normelizeData(_trainingData, input, "input", outputData, multiplier).reshape([inputLayerSize]);
 
-    let y_normalized = normelizeData(_trainingData, output, "output", outputData, multiplier).reshape([dense[0]["input"]]);
+    let y_normalized = normelizeData(_trainingData, output, "output", outputData, multiplier).reshape([inputLayerSize]);
 
     const totalSamples = X_normalized.shape[0];
     const trainSize = Math.floor(percentOfTesting * totalSamples);
@@ -205,14 +219,15 @@ async function training(post){
     trainingData = trainingData.reshape([trainingData.shape[0],1])
     outputTrainingData = outputTrainingData.reshape([outputTrainingData.shape[0],1]);
 
-    let model = tf.sequential({
-        layers: [
-        tf.layers.dense({inputShape: [trainingData.shape[1]], units: 100, activation: 'relu'}),
-        tf.layers.dense({units: 50, activation: 'relu'}),
-        tf.layers.dense({units: 25, activation: 'relu'}),
-        tf.layers.dense({units: 1}),
-        ]
-    });
+    let model = tf.sequential();
+
+    for (let i = 0; i < dense.length; i++) {
+        model.add(tf.layers.dense({
+            inputShape: [dense[i]["input"]],
+            activation: dense[i]["activisionFunction"] !== 'NONE' ? dense[i]["activisionFunction"].toLowerCase() : undefined,
+            units: dense[i]["output"],
+        }));
+    }
 
     model.summary();
 
@@ -222,75 +237,145 @@ async function training(post){
         metrics: ['mse']
     });
 
-    console.log("training...")
-    let valHistory = [];
-    try {
-        await model.fit(trainingData, outputTrainingData, { epochs: dataEpochs, validationData: [testingData, outputTestingData] }).then((h) => {
-            for (let i = 0; i < dataEpochs; i++) {
-                console.log(i)
-                h.history.val_loss.forEach(val_loss => {
-                    valHistory.push(val_loss);
-                });
+    let valHistory = [],
+    cycles = 0,
+    prevModel,
+    bestModel
+
+    async function fit() {
+
+        let regression = sum(valHistory.slice(-dataEpochs)) > sum(valHistory.slice(-dataEpochs * 2, -dataEpochs));
+        prevModel = model;
+        // console.log("fit")
+        // console.log(trainingData.arraySync())
+        valHistory = [...valHistory, ...await fittingModel(model, trainingData, outputTrainingData, dataEpochs, testingData, outputTestingData)];
+        // console.log("line 177")
+
+        // console.log(valHistory)
+        if (regression && cycles > 0 || cycles++ >= minCycles) {
+            let sumMinValHistory = sum(valHistory.slice(-dataEpochs));
+            if (cycles + numCyclesCheck > minCycles) numCyclesCheck = minCycles - cycles;
+
+            if (regression) {
+                bestModel = prevModel;
+                for (let i = 0; i < numCyclesCheck; i++) {
+                    valHistory.concat(await fittingModel(model, trainingData, outputTrainingData, dataEpochs, testingData, outputTestingData));
+                    if (sum(valHistory.slice(-dataEpochs)) < sumMinValHistory) {
+                        cycles += i;
+                        await fit();
+                        break;
+                    }
+                }
+            } else {
+                bestModel = model;
             }
-        });
-    } catch (error) {
-        throw error.message + " train model ERROR";
-    }
-    console.log("valHistory", valHistory) ;
 
-    console.log( JSON.stringify(outputData, null, 2));
+            let layers = [];
 
-    let layers = [];
-    for (let layer, i = 0; i < model.layers.length && (layer = model.getLayer(null, i).getWeights()); i++) {
+            for (let layer, i = 0; i < bestModel.layers.length && (layer = bestModel.getLayer(null, i).getWeights()); i++) {
+                // console.log(bestModel.getLayer(null, i));
+                let weightList = layer[0].arraySync();
+                let biasList = layer[1] ? layer[1].arraySync() : [];
+                let numNeurons = weightList[0].length;
 
-        let weightList = layer[0].arraySync();
-        let biasList = layer[1] ? layer[1].arraySync() : [];
-        let numNeurons = weightList[0].length;
+                for (let j = 0; j < numNeurons; j++) {
+                    let neuron = weightList.map(l => l[j]);
+                    neuron.unshift(biasList[j]);
+                    (layers[i] || (layers[i] = [])).push(neuron);
+                }
 
-        for (let j = 0; j < numNeurons; j++) {
-            let neuron = weightList.map(l => l[j]);
-            neuron.unshift(biasList[j]);
-            (layers[i] || (layers[i] = [])).push(neuron);
-        }
-
-        const l = {
-            "$" : {
-                activation:  dense[i]["activisionFunction"]
-            },
-            neuron : []
-        };
-
-        for(let n = 0; n<layers[i].length; n++){
-            let ne = { w: [] }
-            for(let w = 0; w<layers[i][n].length; w++ ){
-                ne.w.push(layers[i][n][w]);
+                const l = {
+                    "$" : {
+                        activation:  dense[i]["activisionFunction"]
+                    },
+                    neuron : []
+                };
+        
+                for(let n = 0; n<layers[i].length; n++){
+                    let ne = { w: [] }
+                    for(let w = 0; w<layers[i][n].length; w++ ){
+                        ne.w.push(layers[i][n][w]);
+                    }
+                    l.neuron.push(ne)
+                }
+                outputData.model.net.layer.push(l)
             }
-            l.neuron.push(ne)
-        }
-        outputData.model.net.layer.push(l)
 
+            for (let i = 0; i < outputData.model.outputs.output.length; i++){
+                // console.log(JSON.stringify(outputData.model.outputs.output, null, 2));
+                outputData.model.outputs.output[i]["$"]["error"] = valHistory[cycles * dataEpochs - 1 + i];
+            }
+                
+            // dataRet.console = logs;
+            // dataRet.status = 'OK';
+            // process.stdout.write(JSON.stringify(dataRet))
+            // process.stdout.flush();
+        } else await fit();
     }
+    await fit();
+    // let valHistory = [];
+    // try {
+    //     await model.fit(trainingData, outputTrainingData, { epochs: dataEpochs, validationData: [testingData, outputTestingData] }).then((h) => {
+    //         for (let i = 0; i < dataEpochs; i++) {
+    //             h.history.val_loss.forEach(val_loss => {
+    //                 valHistory.push(val_loss);
+    //             });
+    //         }
+    //     });
+    // } catch (error) {
+    //     throw error.message + " train model ERROR";
+    // }
+ 
+    // let layers = [];
+    // for (let layer, i = 0; i < model.layers.length && (layer = model.getLayer(null, i).getWeights()); i++) {
 
-    // console.log("outputData",JSON.stringify((outputData), null, 2));
+    //     let weightList = layer[0].arraySync();
+    //     let biasList = layer[1] ? layer[1].arraySync() : [];
+    //     let numNeurons = weightList[0].length;
+
+    //     for (let j = 0; j < numNeurons; j++) {
+    //         let neuron = weightList.map(l => l[j]);
+    //         neuron.unshift(biasList[j]);
+    //         (layers[i] || (layers[i] = [])).push(neuron);
+    //     }
+
+    //     const l = {
+    //         "$" : {
+    //             activation:  dense[i]["activisionFunction"]
+    //         },
+    //         neuron : []
+    //     };
+
+    //     for(let n = 0; n<layers[i].length; n++){
+    //         let ne = { w: [] }
+    //         for(let w = 0; w<layers[i][n].length; w++ ){
+    //             ne.w.push(layers[i][n][w]);
+    //         }
+    //         l.neuron.push(ne)
+    //     }
+    //     outputData.model.net.layer.push(l)
+
+    // }
+    console.log("I'm here...");
 
     const builder = new Builder();
 
-    const xml = builder.buildObject(outputData);
+    return builder.buildObject(outputData);
 
-    const filePath = 'wish.xml';
+    // const filePath = `./xml/${post["setting"]["name"]}.xml`;
 
-    fs.writeFileSync(filePath, xml, 'utf-8');
+    // await fs.writeFileSync(filePath, xml, 'utf-8');
 
-    console.log(`XML saved to ${filePath}`);
-    const predictions_normalized = model.predict(testingData);
-    const predictions = tf.mul(predictions_normalized, tf.sqrt(y_variance.add(1e-8))).add(y_mean);
+    // console.log(`XML saved to ${filePath}`);
+    // const predictions_normalized = model.predict(testingData);
+    // const predictions = tf.mul(predictions_normalized, tf.sqrt(y_variance.add(1e-8))).add(y_mean);
 
-    const predictedValues = await predictions.array();
+    // const predictedValues = await predictions.array();
 
-    const mse = tf.metrics.meanSquaredError(outputTestingData, predictedValues).dataSync()[0];
-    const rSquared = calculateRSquared(outputTestingData, predictedValues);
+    // const mse = tf.metrics.meanSquaredError(outputTestingData, predictedValues).dataSync()[0];
+    // const rSquared = calculateRSquared(outputTestingData, predictedValues);
 
-    console.log(`Mean Squared Error (MSE): ${mse}, R-squared: ${rSquared}`);
+    // console.log(`Mean Squared Error (MSE): ${mse}, R-squared: ${rSquared}`);
 
     // let XTest;
     // if (X_test && X_mean && X_variance) {
@@ -315,13 +400,7 @@ async function training(post){
     // const XTest_sort = sortedXTest.map(item => item).join(',');
 
     // const predictedValuesString = sortedPredictions.map(item => item).join(',');
-
-    // xmlData.busses.push({
-    //     idtag: bus,
-    //     X: XTest_sort,
-    //     y: predictedValuesString,
-    //     score:rSquared
-    // });
+    return;
 }
 
 // training()

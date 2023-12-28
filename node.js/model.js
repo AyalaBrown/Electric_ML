@@ -1,61 +1,47 @@
 const tf = require('@tensorflow/tfjs');
-const {setModel} = require('./shosh.js');
 const {training} = require('./wish.js')
-
-function minMaxNormalization(data) {
-    const min = Math.min(...data);
-    const max = Math.max(...data);
-    const normalizedData = data.map((value) => (value - min) / (max - min));
-    return normalizedData;
-} 
+const fs = require('fs');
 
 async function runModel(data) {
+    let i = 0;
     const Busses = [...new Set(data.map(row => row.idtag))];
     let bus = "14:1F:BA:10:7F:79"
+    let level = 1;
     // for (const bus of Busses) {
         let filteredData = data.filter((row) => row.idtag === bus);
-        const levels = [...new Set(filteredData.map(row => row.amperLevel))];
+        if (filteredData.length === 0) {
+            console.log(`No data found with idtag ${bus}.`);
+            return;
+        }
+        // const levels = [...new Set(filteredData.map(row => row.amperLevel))];
         // for(const level of levels) {
-            let level = 1;
-            filteredData = data.filter((row) => row.amperLevel === level);    
-            if (filteredData.length === 0) {
-                console.log(`No data found with idtag ${bus}.`);
-                return;
-            }
-            // for(const state of )
+            // filteredData = data.filter((row) => row.amperLevel === level);    
+            // if (filteredData.length === 0) {
+            //     console.log(`No data found with bus ${bus} and level ${level}.`);
+            //     return;
+            // }
+
             let X = tf.tensor2d(filteredData.map((row) => [row.soc]), [filteredData.length, 1]).arraySync().flat();
             let y = tf.tensor2d(filteredData.map((row) => [row.scaled]/60),  [filteredData.length, 1]).arraySync().flat();
-            // console.log(X, y);
-            // const inputShape = [X.shape[0]]
-            // console.log(X.shape[0])
-            // X = X.arraySync().flat();
+
             const input_layer = X.length;
-            // console.log("input_layer", input_layer);
-            // console.log(y, y.length);
-            // const _X = tf.tensor2d(X, [1, X.length])
-            // const _y = tf.tensor2d(y, [1, y.length])
-            // const X_normalized = minMaxNormalization(X);
-            // const y_normalized =minMaxNormalization(y);
+
             const post = {
                 data: [
                     {"soc":X,
                     "scaled":y}
                 ],
                 setting: {
+                    inputLayerSize: input_layer,
                     dense: [
                         {
-                            input:input_layer,
-                            activisionFunction: 'SILU',
-                            output:100
-                        },
-                        {
-                            input:100,
-                            activisionFunction: 'SILU',
+                            input:1,
+                            activisionFunction: 'SIGMOID',
                             output:50
                         },
                         {
                             input:50,
-                            activisionFunction: 'SILU',
+                            activisionFunction: 'SIGMOID',
                             output:25
                         },
                         {
@@ -65,9 +51,9 @@ async function runModel(data) {
                         }
                     ],
                     settingsData:{
-                        epochs: 20,
+                        epochs: 30,
                         multiplier: 1,
-                        percentOfTesting: 20,
+                        percentOfTesting: 10,
                         minCycles: 50,
                         numCyclesCheck: 5
                     },
@@ -86,16 +72,16 @@ async function runModel(data) {
                 },
             }
 
-            const jsonString = JSON.stringify(post, null, 2);
-            // console.log(jsonString);
-            // console.log(post["setting"])
-            training(post);
-            // const builder = new Builder();
-            // const xml = builder.buildObject(xmlData);
-        
-            // fs.writeFileSync('./predictions.xml', xml);
+            const xml = await training(post);
 
-        // }
+            const filePath = `./xml/${i}.xml`;
+
+            await fs.writeFileSync(filePath, xml, 'utf-8');
+
+            console.log(`XML saved to ${filePath}`);
+            
+    //         i++;
+    //     }
     // }
 }
 
