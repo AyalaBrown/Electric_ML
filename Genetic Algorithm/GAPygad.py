@@ -3,6 +3,7 @@ import pygad
 import fitness_func
 import initializations
 import fitness_func
+import convertions
 
 function_inputs = initializations.getFunctionInputs() # Function inputs.
 desired_output = None # Function output.
@@ -14,14 +15,16 @@ desired_output = None # Function output.
 #     return fitness
 
 num_generations = 50
-num_parents_mating = 4
+num_parents_mating = 1
+
+population = convertions.initial_population()
 
 fitness_function = fitness_func.fitness_func
 
-sol_per_pop = 8
-num_genes = len(function_inputs)
+sol_per_pop = len(population)
+num_genes = len(population[0])
 
-init_range_low = -2
+init_range_low = 0
 init_range_high = 5
 
 parent_selection_type = "sss"
@@ -30,9 +33,18 @@ keep_parents = 1
 crossover_type = "single_point"
 
 mutation_type = "random"
-mutation_percent_genes = 10
+mutation_percent_genes = 5
 
-population = initializations.getPopulation()
+min_values = [1, 101, 7, 8, 1] 
+max_values = [4, 106, 12, 13, 5] 
+
+def custom_mutation(solution, num_genes, min_value, max_value):
+    mutated_solution = np.copy(solution)
+    mutation_point = np.random.randint(0, num_genes)
+    mutated_solution[mutation_point] = np.round(mutated_solution[mutation_point])
+    parameter_index = mutation_point%5
+    mutated_solution[mutation_point] = np.clip(mutated_solution[mutation_point], min_value[parameter_index], max_value[parameter_index])
+    return mutated_solution
 
 def on_gen(ga_instance):
     print("Generation : ", ga_instance.generations_completed)
@@ -44,13 +56,13 @@ ga_instance = pygad.GA(num_generations=num_generations,
                        fitness_func=fitness_function,
                        sol_per_pop=sol_per_pop,
                        num_genes=num_genes,
-                       gene_space=population,
+                       initial_population=population,
                        init_range_low=init_range_low,
                        init_range_high=init_range_high,
                        parent_selection_type=parent_selection_type,
                        keep_parents=keep_parents,
                        crossover_type=crossover_type,
-                       mutation_type=mutation_type,
+                       mutation_type=lambda solution, num_genes: custom_mutation(solution, num_genes, min_values, max_values),
                        mutation_percent_genes=mutation_percent_genes)
 
 ga_instance.run()
