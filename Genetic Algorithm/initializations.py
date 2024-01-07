@@ -16,7 +16,7 @@ def getPopulation():
         {"chargerCode": 2, "trackCode": 102, "startTime": 9, "endTime": 11, "amperLevel": 2},
         {"chargerCode": 3, "trackCode": 104, "startTime": 9, "endTime": 11, "amperLevel": 3},
         {"chargerCode": 4, "trackCode": 103, "startTime": 9, "endTime": 11, "amperLevel": 2},
-        {"chargerCode": 1, "trackCode": 101, "startTime": 10, "endTime": 12, "amperLevel": 2},
+        {"chargerCode": 1, "trackCode": 102, "startTime": 7, "endTime": 8, "amperLevel": 2},
         {"chargerCode": 2, "trackCode": 105, "startTime": 9, "endTime": 11, "amperLevel": 2},
         {"chargerCode": 3, "trackCode": 103, "startTime": 11, "endTime": 12, "amperLevel": 1},
         {"chargerCode": 4, "trackCode": 106, "startTime": 7, "endTime": 11, "amperLevel": 2}
@@ -40,3 +40,13 @@ def getFunctionInputs():
             {"from": 1706817600000, "to": 1706824740000, "finalPriceInAgorot": 41.84}
         ]
     }
+
+def getValues():
+    return [
+        [1, 2, 3, 4],
+        [101, 102, 103, 104, 105, 106],
+        None,
+        None,
+        [1, 2, 3, 4, 5]
+    ]
+    

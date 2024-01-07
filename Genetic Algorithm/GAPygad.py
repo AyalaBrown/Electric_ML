@@ -4,6 +4,7 @@ import fitness_func
 import initializations
 import fitness_func
 import convertions
+import random
 
 function_inputs = initializations.getFunctionInputs() # Function inputs.
 desired_output = None # Function output.
@@ -35,16 +36,23 @@ crossover_type = "single_point"
 mutation_type = "random"
 mutation_percent_genes = 5
 
-min_values = [1, 101, 7, 8, 1] 
-max_values = [4, 106, 12, 13, 5] 
 
-def custom_mutation(solution, num_genes, min_value, max_value):
-    mutated_solution = np.copy(solution)
-    mutation_point = np.random.randint(0, num_genes)
-    mutated_solution[mutation_point] = np.round(mutated_solution[mutation_point])
-    parameter_index = mutation_point%5
-    mutated_solution[mutation_point] = np.clip(mutated_solution[mutation_point], min_value[parameter_index], max_value[parameter_index])
-    return mutated_solution
+
+def _mutation_func(offspring, ga_instance, values=None):
+    for chromosome_idx in range(offspring.shape[0]):
+        random_gene_idx = np.random.choice(range(offspring.shape[1]))
+        param_inx = random_gene_idx % 5
+        param_values = values[param_inx]
+        if param_values is not None:
+            offspring[chromosome_idx, random_gene_idx] = int(random.choice(param_values))
+        else:
+            offspring[chromosome_idx, random_gene_idx] += int(np.round(np.random.random()))
+    return offspring
+
+def mutation_func(offspring, ga_instance):
+    values = initializations.getValues()
+    offspring = _mutation_func(offspring, ga_instance, values)
+    return offspring
 
 def on_gen(ga_instance):
     print("Generation : ", ga_instance.generations_completed)
@@ -62,7 +70,7 @@ ga_instance = pygad.GA(num_generations=num_generations,
                        parent_selection_type=parent_selection_type,
                        keep_parents=keep_parents,
                        crossover_type=crossover_type,
-                       mutation_type=lambda solution, num_genes: custom_mutation(solution, num_genes, min_values, max_values),
+                       mutation_type=mutation_func,
                        mutation_percent_genes=mutation_percent_genes)
 
 ga_instance.run()
