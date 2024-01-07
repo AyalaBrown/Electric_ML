@@ -1,7 +1,7 @@
 import numpy as np
 
 # Constants
-MAX_COST = 1e6  # A large value for cost initialization
+MAX_COST = float('inf')  # A large value for cost initialization
 INVALID_SOLUTION_PENALTY = 100
 
 def validate_solution(solution):

@@ -1,23 +1,22 @@
+# https://www.youtube.com/watch?v=PhJgktRB1AM
 import numpy as np
 import matplotlib.pyplot as plt
 from ypstruct import structure
+import fit
 import ga
-
-# Sphere Test Function
-def sphere(x):
-    return sum(x**2)
+import convertions
 
 # problem definition
 problem = structure()
-problem.costfunc = sphere
+problem.costfunc = fit.fitness
 problem.nvar = 5
 problem.varmin = -10
 problem.varmax = 10
 
 # GA parameters
 params = structure()
-params.maxit = 100
-params.npop = 50
+params.maxit = 50
+params.npop = len(convertions.initial_population())
 params.beta = 1
 params.pc = 1
 params.gamma = 0.1

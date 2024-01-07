@@ -1,13 +1,14 @@
 import numpy as np
 import pygad
-import fitness_func
+import fit
 import initializations
-import fitness_func
 import convertions
 import random
 
 function_inputs = initializations.getFunctionInputs() # Function inputs.
 desired_output = None # Function output.
+def fitness_func(ga_instance, solution, solution_idx):
+    return 0
 
 # def fitness_func(ga_instance, solution, solution_idx):
 #     output = np.sum(solution*function_inputs)
@@ -16,11 +17,11 @@ desired_output = None # Function output.
 #     return fitness
 
 num_generations = 50
-num_parents_mating = 1
+num_parents_mating = 5
 
 population = convertions.initial_population()
 
-fitness_function = fitness_func.fitness_func
+fitness_function = fitness_func
 
 sol_per_pop = len(population)
 num_genes = len(population[0])
@@ -39,6 +40,7 @@ mutation_percent_genes = 5
 
 
 def _mutation_func(offspring, ga_instance, values=None):
+    print("_mutation_func", offspring)
     for chromosome_idx in range(offspring.shape[0]):
         random_gene_idx = np.random.choice(range(offspring.shape[1]))
         param_inx = random_gene_idx % 5

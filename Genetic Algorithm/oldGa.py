@@ -1,8 +1,6 @@
 import numpy as np
 from ypstruct import structure
 import convertions
-import initializations
-import random
 
 def run(problem, params):
     # Problem Information
@@ -57,6 +55,11 @@ def run(problem, params):
         popc = []
         for _ in range(nc//2):
 
+            # Select Parents
+            # q = np.random.permutation(npop)
+            # p1 = pop[q[0]]
+            # p2 = pop[q[1]]
+
             # Perform Roulette Wheel Selection
             p1 = pop[roulette_wheel_selection(probs)]
             p2 = pop[roulette_wheel_selection(probs)]
@@ -64,20 +67,13 @@ def run(problem, params):
             # Perform Crossover
             c1, c2 = crossover(p1, p2, gamma)
 
-            # print("after crossover ")
-            # print("c1: ", c1.position)
-            # print("c2: ", c2.position)
             # Perform Mutation
-            c1 = mutate(c1)
-            c2 = mutate(c2)
-
-            # print("after mutate ")
-            # print("c1: ", c1.position)
-            # print("c2: ", c2.position)
+            c1 = mutate(c1, mu, sigma)
+            c2 = mutate(c2, mu, sigma)
 
             # Apply Bounds
-            # apply_bound(c1, varmin, varmax)
-            # apply_bound(c2, varmin, varmax)
+            apply_bound(c1, varmin, varmax)
+            apply_bound(c2, varmin, varmax)
 
             # Evaluate First Offspring
             c1.cost = costfunc(c1.position)
@@ -112,42 +108,24 @@ def run(problem, params):
     return out
 
 def crossover(p1, p2, gamma=0.1):
+    print("Crossover")
+    print("p1:", p1.position)
+    print("p2: ", p2.position)
     c1 = p1.deepcopy()
     c2 = p1.deepcopy()
-    # print("crossover", type(p1.position))
-    crossSite1 = np.random.randint(0, len(c1.position)/2)
-    crossSite2 = np.random.randint(len(c1.position)/2, len(c1.position))
-
-    for i in range(0, len(c1.position)):
-        if i >=crossSite1 and i <= crossSite2:
-            c1.position[i] = p2.position[i]
-            c2.position[i] = p1.position[i]
-        else:
-            c1.position[i] = p1.position[i]
-            c2.position[i] = p2.position[i]
+    print (f"-gamma {-gamma} 1+gamma {1+gamma} len(c1.position) {len(c1.position)}")
+    alpha = np.random.uniform(-gamma, 1+gamma, len(c1.position))
+    print("alpha", alpha)
+    c1.position = alpha*p1.position+ (1-alpha)*p2.position
+    c2.position = alpha*p2.position + (1-alpha)*p1.position
     return c1, c2
 
-# def mutate(x, mu, sigma):
-#     y = x.deepcopy()
-#     flag = np.random.rand(*x.position.shape) <= mu
-#     ind = np.argwhere(flag)
-#     y.position[ind] += sigma*np.random.randn(*ind.shape)
-#     return y
-
-def mutate(x):
-    # print("mutate")
-    offspring = x.deepcopy()
-    values = initializations.getValues()
-    random_gene_idx = np.random.choice(range(len(offspring.position)))
-    param_inx = random_gene_idx % 5
-    param_values = values[param_inx]
-    if param_values is not None:
-        offspring.position[random_gene_idx] = int(random.choice(param_values))
-    else:
-        offspring.position[random_gene_idx] += int(np.round(np.random.random()))
-    # print(f"muteted offspring:{offspring.position} at index {random_gene_idx}")
-    return offspring
-
+def mutate(x, mu, sigma):
+    y = x.deepcopy()
+    flag = np.random.rand(*x.position.shape) <= mu
+    ind = np.argwhere(flag)
+    y.position[ind] += sigma*np.random.randn(*ind.shape)
+    return y
 
 def apply_bound(x, varmin, varmax):
     x.position = np.maximum(x.position, varmin)
@@ -157,5 +135,5 @@ def roulette_wheel_selection(p):
     c = np.cumsum(p)
     r = sum(p)*np.random.rand()
     ind = np.argwhere(r <= c)
-    # print("parent selected: ",ind[0][0])
+    print("parent selected: ",ind[0][0])
     return ind[0][0]
