@@ -9,11 +9,11 @@ def fitness(solution):
 
     # weights:
     # constraint 1 - A bus is scheduled to charge while it is in the parking lot
-    w1 = 0.5
+    w1 = 0.3
     # constraint 2 - A bus is not scheduled to charge at the same time to two different chargers and connectors
-    w2 = 0.5
+    w2 = 0.3
     # constraint 3 - There are not two busses that schedule to one connector at the same time 
-    w3 = 0.5
+    w3 = 0.3
 
     total_cost = 0
 

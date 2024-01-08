@@ -2,7 +2,7 @@ import initializations
 import random
 
 def init_pop(npop):
-    inputs = initializations.getFunctionInputsDB()
+    inputs = initializations.getFunctionInputs()
     busses = inputs["busses"]
     prices = inputs["prices"]
     chargers = inputs["chargers"]
