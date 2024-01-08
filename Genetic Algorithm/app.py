@@ -15,7 +15,7 @@ problem.varmax = 10
 
 # GA parameters
 params = structure()
-params.maxit = 50
+params.maxit = 500
 params.npop = len(convertions.initial_population())
 params.beta = 1
 params.pc = 1
@@ -26,7 +26,7 @@ params.sigma = 0.1
 # Run GA
 out = ga.run(problem, params)
 
-print(0)
+print(out)
 
 # Results
 plt.plot(out.bestcost)
