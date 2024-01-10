@@ -32,17 +32,13 @@ def run(problem, params):
     bestsol.cost = np.inf
 
     init_pop = convertions.initial_population()
-    # print(init_pop)
 
     # Initialize Population
     pop = empty_individual.repeat(npop)
     for i in range(0, npop):
-        # print("init_pop[i]", init_pop[i])
-        pop[i].position = np.array(init_pop[i])
-        # print("pop[i].position", pop[i].position)
+        pop[i].position = init_pop[i]
         pop[i].cost = costfunc(pop[i].position)
         if pop[i].cost < bestsol.cost:
-            # print("in if",bestsol)
             bestsol = pop[i].deepcopy()
             bestsol.iteration = 0
 
@@ -71,6 +67,8 @@ def run(problem, params):
             # Perform Mutation
             c1 = mutate(c1)
             c2 = mutate(c2)
+
+            # print(f"c1: {c1.position}, c2: {c2.position}")
 
             # Evaluate First Offspring
             c1.cost = costfunc(c1.position)
@@ -119,6 +117,8 @@ def crossover(p1, p2, gamma=0.1):
         else:
             c1.position[i] = p1.position[i]
             c2.position[i] = p2.position[i]
+    # print(f"p1: {p1.position}, p2: {p2.position}")
+    # print(f"c1: {c1.position}, c2: {c2.position}")
     return c1, c2
 
 def mutate(x):

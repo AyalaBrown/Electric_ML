@@ -13,11 +13,14 @@ def read_data():
     busses = pd.read_sql(query, cnxn).to_dict(orient='records')
     query = "exec isrProject_test.dbo.GetChargersList;"
     chrgs = []
-    chargers = pd.read_sql(query, cnxn).to_dict(orient='records')
-    for i in range(0, len(chargers)):
-        if chargers[i]["voltage"] > 0:
-            chrgs.append({"chargerCode": chargers[i]["code"], "connectorId": 1, "voltage": chargers[i]["voltage"]})
-            chrgs.append({"chargerCode": chargers[i]["code"], "connectorId": 2, "voltage": chargers[i]["voltage"]})
+    # chargers = pd.read_sql(query, cnxn).to_dict(orient='records')
+    # for i in range(0, len(chargers)):
+    #     if chargers[i]["voltage"] > 0:
+    #         chrgs.append({"chargerCode": chargers[i]["code"], "connectorId": 1, "voltage": chargers[i]["voltage"]})
+    #         chrgs.append({"chargerCode": chargers[i]["code"], "connectorId": 2, "voltage": chargers[i]["voltage"]})
+    for i in range(100):
+        chrgs.append({"chargerCode": i, "connectorId": 1, "voltage": 650})
+        chrgs.append({"chargerCode": i, "connectorId": 2, "voltage": 650})
     query = "exec dbo.GetElectricRate_PerDate '20240107';"
     prices = pd.read_sql(query, cnxn).to_dict(orient='records')
     query = "exec dbo.GetElectricRate_PerDate '20240108';"
@@ -25,5 +28,10 @@ def read_data():
     prices.extend(prices2)
     query = "exec dbo.GetElectricAmperLevels;"
     amperLevels = pd.read_sql(query, cnxn).to_dict(orient='records')
-    data = {"busses": busses, "maxAmper": 2500, "chargers": chrgs, "prices": prices, "amperLevels": amperLevels}
+    query = "exec  dbo.GetElectricCapacity;"
+    c = pd.read_sql(query, cnxn)
+    capacity = {}
+    for i in range(0, len(c)):
+        capacity[int(c.loc[i,"trackCode"])] = float(c.loc[i,"capacity"])
+    data = {"busses": busses, "maxPower": 4000000, "chargers": chrgs, "prices": prices, "amperLevels": amperLevels, "capacity": capacity}
     return data

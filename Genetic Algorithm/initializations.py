@@ -43,7 +43,7 @@ def getFunctionInputs():
             {"trackCode":119, "entryTime":7, "exitTime":11, "socStart":20, "socEnd":80},
             {"trackCode":120, "entryTime":7, "exitTime":12, "socStart":40, "socEnd":60}
         ],
-        "maxAmper": 650,
+        "maxPower": 4000000,
         "prices": [
             {"from": 1704578400000, "to": 1704639599000, "finalPriceInAgorot": 41.84},
             {"from": 1704639600000, "to": 1704657599000, "finalPriceInAgorot": 114.78}, 

@@ -4,7 +4,7 @@ inputs = initializations.getFunctionInputsDB()
 busses = inputs["busses"]
 prices = inputs["prices"]
 chargers = inputs["chargers"]
-maxAmper = inputs["maxAmper"]
+maxPower = inputs["maxPower"]
 amperLevels = inputs["amperLevels"]
 
 def init_pop(npop):

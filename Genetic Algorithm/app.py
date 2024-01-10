@@ -15,7 +15,7 @@ problem.varmax = 10
 
 # GA parameters
 params = structure()
-params.maxit = 2000
+params.maxit = 100
 params.npop = len(convertions.initial_population())
 params.beta = 1
 params.pc = 1
