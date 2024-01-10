@@ -32,15 +32,17 @@ def run(problem, params):
     bestsol.cost = np.inf
 
     init_pop = convertions.initial_population()
-    print(init_pop)
+    # print(init_pop)
 
     # Initialize Population
     pop = empty_individual.repeat(npop)
     for i in range(0, npop):
+        # print("init_pop[i]", init_pop[i])
         pop[i].position = np.array(init_pop[i])
+        # print("pop[i].position", pop[i].position)
         pop[i].cost = costfunc(pop[i].position)
         if pop[i].cost < bestsol.cost:
-            print("in if",bestsol)
+            # print("in if",bestsol)
             bestsol = pop[i].deepcopy()
             bestsol.iteration = 0
 
@@ -121,7 +123,7 @@ def crossover(p1, p2, gamma=0.1):
 
 def mutate(x):
     offspring = x.deepcopy()
-    values = initializations.getValues()
+    values = initializations.getFunctionInputsDB()["values"]
     random_gene_idx = np.random.choice(range(len(offspring.position)))
     param_inx = random_gene_idx % 7
     param_values = values[param_inx]

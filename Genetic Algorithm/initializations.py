@@ -1,8 +1,22 @@
 import readingFromDb
 
+data = readingFromDb.read_data()
 
 def getFunctionInputsDB():
-    data = readingFromDb.read_data()
+    chargers = []
+    busses = []
+    amperes = []
+    for i in range(0, len(data["busses"])):
+        busses.append(data["busses"][i]["trackCode"])
+    u_busses = list(set(busses))
+    for i in range(0, len(data["chargers"])):
+        chargers.append(data["chargers"][i]["chargerCode"])
+    u_chargers = list(set(chargers))
+    for i in range(0, len(data["amperLevels"])):
+        amperes.append(data["amperLevels"][i]["low"]+(data["amperLevels"][i]["high"]-data["amperLevels"][i]["low"])/2)
+    u_amperes = list(set(amperes))
+    values = [u_chargers, [1,2], u_busses, None, None, u_amperes, None]
+    data["values"] = values
     return data
 
 def getFunctionInputs():
@@ -31,9 +45,9 @@ def getFunctionInputs():
         ],
         "maxAmper": 650,
         "prices": [
-            {"from": 1706799600000, "to": 1706817540000, "finalPriceInAgorot": 114.78},
-            {"from": 1706738400000, "to": 1706799540000, "finalPriceInAgorot": 41.84}, 
-            {"from": 1706817600000, "to": 1706824740000, "finalPriceInAgorot": 41.84}
+            {"from": 1704578400000, "to": 1704639599000, "finalPriceInAgorot": 41.84},
+            {"from": 1704639600000, "to": 1704657599000, "finalPriceInAgorot": 114.78}, 
+            {"from": 1704657600000, "to": 1704664799000, "finalPriceInAgorot": 41.84}
         ],
         "chargers": [
             {"chargerCode": 1, "connectorId":1, "voltage":650},
@@ -44,41 +58,21 @@ def getFunctionInputs():
             {"chargerCode": 3, "connectorId":2, "voltage":652},
             {"chargerCode": 4, "connectorId":1, "voltage":650},
             {"chargerCode": 4, "connectorId":2, "voltage":650}
+        ],
+        "amperLevels": [
+            {"levelCode": 1, "low": 140, "high": 170}, 
+            {"levelCode": 2, "low": 107, "high": 135}, 
+            {"levelCode": 3, "low": 95, "high": 106}, 
+            {"levelCode": 4, "low": 70, "high": 90}, 
+            {"levelCode": 5, "low": 40, "high": 45}
+        ],
+        "values": [
+            [1, 2, 3, 4],
+            [1, 2],
+            [101, 102, 103, 104, 105, 106],
+            None,
+            None,
+            [155, 121, 100.5, 80, 42.5],
+            None
         ]
     }
-
-def getValues():
-    return [
-        [1, 2, 3, 4],
-        [1, 2],
-        [101, 102, 103, 104, 105, 106],
-        None,
-        None,
-        [1, 2, 3, 4, 5],
-        None
-    ]
-
-# [  3,   2, 101,   7,   8,   0,   0,   2,   1, 102,  10,  11,   1,
-#          0,   4,   2, 103,  13,  14,   4,   0,   1,   1, 104,  11,  15,
-#          1,   0,   4,   1, 105,   7,   8,   3,   0,   3,   1, 106,  11,
-#         12,   5,   0,   4,   1, 107,  10,  12,   2,   0,   3,   2, 108,
-#         10,  11,   0,   0,   3,   1, 109,   9,  13,   2,   0,   4,   2,
-#        110,  11,  12,   0,   0,   2,   1, 111,   7,  10,   1,   0,   1,
-#          1, 112,   8,  12,   5,   0,   1,   1, 113,   9,  10,   5,   0,
-#          3,   1, 114,   8,   9,   0,   0,   4,   1, 115,   8,   9,   3,
-#          0,   3,   2, 116,   7,   9,   0,   0,   3,   1, 117,  10,  11,
-#          0,   0,   2,   2, 118,  12,  13,   4,   0,   2,   2, 119,   8,
-#         11,   0,   0,   2,   2, 120,  10,  11,   2,   0]
-
-# [  2,   2, 101,   8,  11,   1,   0,   1,   1, 102,   9,  11,   1,
-#          0,   1,   1, 103,  12,  13,   1,   0,   4,   1, 104,  14,  15,
-#          0,   0,   2,   1, 105,   7,   9,   2,   0,   3,   2, 106,   9,
-#         10,   1,   0,   3,   1, 107,   9,  12,   2,   0,   4,   1, 108,
-#         11,  11,   3,   0,   3,   2, 109,  10,  11,   5,   0,   4,   2,
-#        110,  11,  12,   1,   0,   2,   2, 111,   8,   9,   4,   0,   1,
-#          2, 112,  11,  12,   2,   0,   3,   2, 113,  13,  14,   0,   0,
-#          1,   1, 114,   7,  11,   2,   0,   4,   1, 115,   7,  10,   5,
-#          0,   1,   2, 116,   8,  10,   1,   0,   2,   2, 117,  12,  12,
-#          5,   0,   2,   1, 118,  13,  15,   3,   0,   4,   2, 119,   7,
-#          9,   4,   0,   2,   1, 120,  11,  12,   0,   0]
-# # 0.007
