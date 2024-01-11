@@ -15,16 +15,19 @@ def fitness(solution):
         # constraint 2 - There are not conflicts between busses and chargers
         # constraint 3 - The the total consumption of the ampere in the parking lot not exceeds the max ampere 
         # constraint 4 - A bus charging enough for it's tasks
+        # constraint 5 - Prefer the cheapest plan
 
         # weights:
         # constraint 1
-        w1 = 0.28
+        w1 = 0.22
         # constraint 2
-        w2 = 0.28
+        w2 = 0.22
         # constraint 3 
-        w3 = 0.30
+        w3 = 0.22
         # constraint 4
-        w4 = 0.28
+        w4 = 0.22
+        # constraint 5
+        w5 = 0.12
 
         total_cost = 0
 
@@ -44,9 +47,13 @@ def fitness(solution):
         # constraint 4
         busses_charge = {}
         cost4 = 0
+        good4 = 0
+        not_good4 = 0
+        # constraint 5
+        financial_cost = 0
 
         for bus in busses:
-            busses_charge[bus['trackCode']] = 0
+            busses_charge[bus['trackCode']] = {'charge': 0,'soc_start': bus['socStart'], 'soc_end': bus['socEnd']}
 
         for i in range(0, len(solution), 7):
             
@@ -90,17 +97,27 @@ def fitness(solution):
             if bus_code not in busses_charge:
                 raise Exception("Bus code not found")
             charging_time = end_time - start_time
-            busses_charge[bus_code]+= charging_time*ampere*voltage/1000/capacity[int(bus_code)]
-            print(ampere*voltage/1000/capacity[int(bus_code)])
-
+            if bus_code in capacity:
+                busses_charge[bus_code]['charge']+= charging_time/1000/60*ampere*voltage/1000/capacity[int(bus_code)]
+            # print(f"soc start: {busses_charge[bus_code]['soc_start']} soc end: {busses_charge[bus_code]['soc_start']+busses_charge[bus_code]['charging_time']}")
+            for bus in busses_charge:
+                if busses_charge[bus]['charge'] > 95 or busses_charge[bus]['charge'] < busses_charge[bus]['soc_end']:
+                    not_good4+=1
+                else:
+                    good4+=1
+            
+            # constraint 5
+            financial_cost += price
+                
         cost1 = w1*not_good1/(good1+not_good1)
         cost2 = w2*not_good2/(good2+not_good2)
         cost3 = w3*calculate_cost_3(start_ampere_list, end_ampere_list, maxPower)
-        total_cost = cost1 + cost2 + cost3
-
+        cost4 = w4*not_good4/(good4+not_good4)
+        cost5 = w5*financial_cost/15000
+        total_cost = cost1 + cost2 + cost3 + cost4 +cost5
         return total_cost
     except Exception as e:
-        print(e)
+        print("error!!!!!!!!", e)
         return
 
 def calculate_cost_3(start_ampere_list, end_ampere_list, maxPower):

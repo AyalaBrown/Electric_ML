@@ -10,7 +10,11 @@ cnxn = pyodbc.connect('DRIVER={SQL Server};SERVER='+server+';DATABASE='+database
 cursor = cnxn.cursor()
 def read_data():
     query = "exec dbo.GetElectricPlan_trackSoc '20240107';"
-    busses = pd.read_sql(query, cnxn).to_dict(orient='records')
+    b = pd.read_sql(query, cnxn).to_dict(orient='records')
+    busses = []
+    for i in b:
+        if i["socStart"] > 0 and i["socStart"] < i["socEnd"] and i["entryTime"] < i["exitTime"]and i["entryTime"] > 0:
+            busses.append(i)
     query = "exec isrProject_test.dbo.GetChargersList;"
     chrgs = []
     # chargers = pd.read_sql(query, cnxn).to_dict(orient='records')
