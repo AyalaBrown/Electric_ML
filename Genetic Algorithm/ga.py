@@ -107,11 +107,14 @@ def run(problem, params):
 
 def crossover(p1, p2, gamma=0.1):
     c1 = p1.deepcopy()
-    c2 = p1.deepcopy()
-    crossSite1 = np.random.randint(0, len(c1.position)/2)
-    crossSite2 = np.random.randint(len(c1.position)/2, len(c1.position))
+    c2 = p2.deepcopy()
+    length = min(len(p1.position), len(p2.position))
 
-    for i in range(0, len(c1.position)):
+    crossSite1 = np.random.randint(0, length/2)
+    crossSite2 = np.random.randint(length/2, length)
+
+    for i in range(0, length):
+
         if i >=crossSite1 and i <= crossSite2:
             c1.position[i] = p2.position[i]
             c2.position[i] = p1.position[i]
@@ -132,23 +135,21 @@ def mutate(x):
         offspring.position[random_gene_idx] = int(random.choice(param_values))
     else:
         offspring.position[random_gene_idx] += int(np.round(np.random.random()))
-
-    if np.random.rand() < 0.5:
         # Add a new schedule
-        new_schedule = generate_random_schedule(offspring)
-        if new_schedule:
-            print("Generated Schedule:", new_schedule)
-        else:
-            print("No vacant chargers available.")
-            if len(offspring.position) >= 7:
-                remove_index = np.random.choice(range(0, len(offspring.position), 7))
-                del offspring.position[remove_index:remove_index + 7]
-        offspring.position.extend(new_schedule)
-    else:
-        # Remove a random schedule
-        if len(offspring.position) >= 7:
-            remove_index = np.random.choice(range(0, len(offspring.position), 7))
-            del offspring.position[remove_index:remove_index + 7]
+    offspring.position = add_or_remove_schedule(offspring.position)
+    #     if new_schedule:
+    #         print("Generated Schedule:", new_schedule)
+    #     else:
+    #         print("No vacant chargers available.")
+    #         if len(offspring.position) >= 7:
+    #             remove_index = np.random.choice(range(0, len(offspring.position), 7))
+    #             del offspring.position[remove_index:remove_index + 7]
+    #     offspring.position.extend(new_schedule)
+    # else:
+    #     # Remove a random schedule
+    #     if len(offspring.position) >= 7:
+    #         remove_index = np.random.choice(range(0, len(offspring.position), 7))
+    #         del offspring.position[remove_index:remove_index + 7]
     return offspring
 
 def roulette_wheel_selection(p):
@@ -157,40 +158,93 @@ def roulette_wheel_selection(p):
     ind = np.argwhere(r <= c)
     return ind[0][0]
 
-def generate_random_schedule(offspring):
+def add_or_remove_schedule(offspring):
     data = initializations.getFunctionInputsDB()
     busses = data["busses"]
     chargers = data["chargers"]
     amperLevels = data["amperLevels"]
     maxPower = data["maxPower"]
+    capacity = data["capacity"]
+    busses_charge = {}
+    chargers_busy = {}
+    bus_busy = []
 
-    # Randomly choose a bus from the offspring
-    bus = random.choice(offspring)
+    for bus in busses:
+        busses_charge[bus['trackCode']] = {'charge': 0,'entryTime':bus['entryTime'],'exitTime':bus['exitTime'],'soc_start': bus['socStart'], 'soc_end': bus['socEnd']}
 
-    # Randomly choose a vacant charger
-    vacant_chargers = [charger for charger in chargers if charger not in offspring]
-    if not vacant_chargers:
-        # If no vacant chargers, return None
-        return None
+    for i in range(0, len(offspring), 7):
+        chargerCode, connectorId, bus_code, start_time, end_time, ampere, price = offspring[i:i+7] 
+        voltage = 0
+        for charger in chargers:
+            if charger['chargerCode'] == chargerCode:
+                voltage = charger["voltage"]
+                break
+        if bus_code not in busses_charge:
+            raise Exception("Bus code not found")
+        charging_time = end_time - start_time
+        if bus_code in capacity:
+            busses_charge[bus_code]['charge']+= charging_time/1000/60*ampere*voltage/1000/capacity[int(bus_code)]
+            if busses_charge[bus_code]['charge'] > 95:
+                del offspring[i:i+7]
+                return offspring
+    for bus in busses_charge:
+        if busses_charge[bus]['charge'] < busses_charge[bus]['soc_end']:
+            for i in range(0, len(offspring), 7):
+                chargerCode, connectorId, bus_code, start_time, end_time, ampere, price = offspring[i:i+7] 
+                if (chargerCode, connectorId) in chargers_busy:
+                    chargers_busy[(chargerCode, connectorId)].append({"from": start_time, "to": end_time})
+                else:
+                    chargers_busy[(chargerCode, connectorId)] = [{"from": start_time, "to": end_time}]
+                if bus_code == bus:
+                    bus_busy.append({"from": start_time, "to": end_time})
 
-    charger = random.choice(vacant_chargers)
+            chargerCode 
+            connectorId
+            start_time
+            end_time
+            voltage
+            # random ampere
+            ampereLevel = random.choice(amperLevels)
 
-    # Randomly choose an amper level
-    amperLevel = random.choice(amperLevels)
-    ampere = random.uniform(amperLevel["low"], amperLevel["high"])
+            # founding the biggest slot of time
+            ampere = ampereLevel["low"]+(ampereLevel["low"]+ampereLevel["high"])/2
+            prev_empty_time = structure()
+            prev_empty_time.start = 0
+            prev_empty_time.end = busses_charge[bus]["entryTime"]
 
-    # Calculate random start and end times based on bus entry and exit times
-    entryTime = [bus["entryTime"] - 1, bus["entryTime"] + 1]  # Allow for some flexibility
-    exitTime = [bus["exitTime"] - 1, bus["exitTime"] + 1]  # Allow for some flexibility
-    startTime = random.uniform(max(entryTime[0], 0), min(exitTime[0], 24))
-    endTime = random.uniform(max(entryTime[1], 0), min(exitTime[1], 24))
+            big_empty_time = 0
+            
+            bus_busy.sort(key=lambda x: x["from"])
+            for busy in bus_busy:
+                time = busy["from"] - prev_empty_time.end
+                prev_empty_time.start = busy["to"]
+                prev_empty_time.end = busy["from"]
+                if time > big_empty_time:
+                    big_empty_time = time
+                    start_time = prev_empty_time.start
+                    end_time = prev_empty_time.end
+            time = busses_charge[bus]["exitTime"] - prev_empty_time.end
+            prev_empty_time.start = prev_empty_time.end
+            prev_empty_time.end = busses_charge[bus]["exitTime"]
+            if time > big_empty_time:
+                big_empty_time = time
+                start_time = prev_empty_time.start
+                end_time = prev_empty_time.end
 
-    # Calculate price based on ampere, start time, end time, and prices
-    price = initialPopulation.calculate_price(ampere, startTime, endTime, data["prices"])
-
-    # Create the new schedule
-    new_schedule = [
-        charger["chargerCode"], bus["trackCode"],
-        startTime, endTime, ampere, price
-    ]
-    return new_schedule
+            # founding a free charger at the free time
+            
+            for charger in chargers_busy:
+                chargers_busy[charger].sort(key=lambda x: x["from"])
+                prev = chargers_busy[charger][0]
+                for time in chargers_busy[charger]:
+                    if time["from"]>prev["to"]and time["to"]<prev["from"]:
+                        chargerCode, connectorId = charger
+                        break
+            for charger in chargers:
+                if charger["chargerCode"] == chargerCode:
+                    voltage = charger["voltage"]
+                    break
+            # calculating the price of the schedule        
+            price = initialPopulation.calculate_price(ampere, start_time, end_time, data["prices"], voltage) 
+            offspring.extend([chargerCode, connectorId, bus, start_time, end_time, ampere, price])
+    return offspring
