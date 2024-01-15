@@ -2,7 +2,7 @@ import numpy as np
 import initializations
 import convertions
 
-def fitness(solution):
+def fitness(solution, min_cost, max_cost):
     try:
         parameters = initializations.getFunctionInputsDB()
         busses = parameters["busses"]
@@ -99,7 +99,6 @@ def fitness(solution):
             charging_time = end_time - start_time
             if bus_code in capacity:
                 busses_charge[bus_code]['charge']+= charging_time/1000/60*ampere*voltage/1000/capacity[int(bus_code)]
-            # print(f"soc start: {busses_charge[bus_code]['soc_start']} soc end: {busses_charge[bus_code]['soc_start']+busses_charge[bus_code]['charging_time']}")
             for bus in busses_charge:
                 if busses_charge[bus]['charge'] > 95 or busses_charge[bus]['charge'] < busses_charge[bus]['soc_end']:
                     not_good4+=1
@@ -108,12 +107,11 @@ def fitness(solution):
             
             # constraint 5
             financial_cost += price
-                
         cost1 = w1*not_good1/(good1+not_good1)
         cost2 = w2*not_good2/(good2+not_good2)
         cost3 = w3*calculate_cost_3(start_ampere_list, end_ampere_list, maxPower)
         cost4 = w4*not_good4/(good4+not_good4)
-        cost5 = w5*financial_cost/15000
+        cost5 = w5*(financial_cost-min_cost)/(max_cost-min_cost)
         total_cost = cost1 + cost2 + cost3 + cost4 +cost5
         return total_cost
     except Exception as e:

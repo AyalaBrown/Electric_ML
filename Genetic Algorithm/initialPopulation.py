@@ -19,22 +19,34 @@ def init_pop(npop):
                 endTime = random.randint(startTime+1, bus["exitTime"])
                 amperLevel = random.randint(1, 5)
                 ampere = amperLevels[amperLevel-1]["low"]+(amperLevels[amperLevel-1]["high"]-amperLevels[amperLevel-1]["low"])/2
-                price = calculate_price(ampere, startTime, endTime, prices, charger["voltage"])
+                price = calculate_schedule_price(ampere, startTime, endTime, prices, charger["voltage"])
                 sol.append({"chargerCode": charger["chargerCode"], "connectorId": charger["connectorId"], "trackCode": bus["trackCode"], "startTime": startTime, "endTime": endTime, "ampere": ampere, "price": price})
         pop.append(sol)
     return pop
 
-def calculate_price(ampere, startTime, endTime, prices, voltage):
+def calculate_schedule_price(ampere, startTime, endTime, prices, voltage):
+    # print("Calculating price")
     sorted_prices = sorted(prices, key=lambda x: x["from"])
     price = 0
     for k in range(0, len(prices)):
         if (startTime >= sorted_prices[k]["from"] and startTime<prices[k]["to"]) or price > 0:
             if endTime <= sorted_prices[k]["to"]:
                 price += sorted_prices[k]["finalPriceInAgorot"]/100 * ampere * (endTime/1000./60./60. - startTime/1000./60./60.) * voltage/1000
+                # print(ampere, startTime, endTime, voltage)
+                # print(price)
                 return price
             else:
                 if price == 0:
                     price = sorted_prices[k]["finalPriceInAgorot"]/100 * ampere * (sorted_prices[k]["to"]/1000./60./60. - startTime/1000./60./60.) * voltage/1000
                 else:
                     price += sorted_prices[k]["finalPriceInAgorot"]/100 * ampere * (sorted_prices[k]["to"]/1000./60./60. - sorted_prices[k]["from"]/1000./60./60.) *voltage/1000
+    # print(ampere, startTime, endTime, voltage)
+    # print(price)
     return price
+
+def calculate_solution_price(solution):
+    final_price = 0
+    for i in range(0, len(solution), 7):
+        _, _, _, _, _, _, price = solution[i:i+7] 
+        final_price += price
+    return final_price

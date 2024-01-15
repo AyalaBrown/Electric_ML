@@ -3,12 +3,13 @@ import numpy as np
 import matplotlib.pyplot as plt
 from ypstruct import structure
 import fit
+import fitness
 import ga
 import convertions
 
 # problem definition
 problem = structure()
-problem.costfunc = fit.fitness
+problem.costfunc = fitness.fitness
 problem.nvar = 5
 problem.varmin = -10
 problem.varmax = 10
