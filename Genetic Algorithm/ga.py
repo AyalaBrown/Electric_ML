@@ -8,9 +8,7 @@ import initialPopulation
 def run(problem, params):
     # Problem Information
     costfunc = problem.costfunc
-    nvar = problem.nvar
-    varmin = problem.varmin
-    varmax = problem.varmax
+
     
     # Parameters
     maxit = params.maxit
@@ -18,9 +16,7 @@ def run(problem, params):
     beta = params.beta
     pc = params.pc
     nc = int(np.round(pc*npop/2)*2)
-    gamma = params.gamma
-    mu = params.mu
-    sigma = params.sigma
+
     
     # Empty Individual Template
     empty_individual = structure()
@@ -71,7 +67,7 @@ def run(problem, params):
             p2 = pop[roulette_wheel_selection(probs)]
 
             # Perform Crossover
-            c1, c2 = crossover(p1, p2, gamma)
+            c1, c2 = crossover(p1, p2)
 
             # Perform Mutation
             c1 = mutate(c1)
@@ -119,7 +115,7 @@ def run(problem, params):
     out.bestcost = bestcost
     return out
 
-def crossover(p1, p2, gamma=0.1):
+def crossover(p1, p2):
     c1 = p1.deepcopy()
     c2 = p2.deepcopy()
     length = min(len(p1.position), len(p2.position))
@@ -158,10 +154,10 @@ def roulette_wheel_selection(p):
 
 def add_or_remove_schedule(offspring):
     data = initializations.getFunctionInputsDB()
-    busses_charge = {bus['trackCode']: {'charge': 0, 'entryTime': bus['entryTime'], 'exitTime': bus['exitTime'],
-                                        'soc_start': bus['socStart'], 'soc_end': bus['socEnd']}
-                     for bus in data["busses"]}
-    chargers = {charger['chargerCode']:charger for charger in data["chargers"]}
+    busses_charge = {bus: {'charge': data["busses"][bus]['socStart'], 'entryTime': data["busses"][bus]['entryTime'], 'exitTime': data["busses"][bus]['exitTime'],
+                                        'soc_start': data["busses"][bus]['socStart'], 'soc_end': data["busses"][bus]['socEnd']}
+                     for bus in data["busses"].keys()}
+    chargers = data["chargers"]
     amperLevels = data["amperLevels"]
     capacity = data["capacity"]
     chargers_busy = {}
@@ -180,14 +176,21 @@ def add_or_remove_schedule(offspring):
         charging_time = end_time - start_time
 
         if bus_code in capacity:
-            busses_charge[bus_code]['charge'] += charging_time / 1000 / 60 * ampere * chargers[chargerCode]["voltage"] / 1000 / capacity[int(bus_code)]
+            curr_charge = charging_time / 1000 / 60 * ampere * chargers[(chargerCode, connectorId)]["voltage"] / 1000 / capacity[int(bus_code)]
+            busses_charge[bus_code]['charge'] 
 
-            if busses_charge[bus_code]['charge'] > 95:
-                del offspring[i:i+7]
+            if (busses_charge[bus_code]['charge'] + curr_charge)> 95:
+                end_time = start_time + int(charging_time*(busses_charge[bus_code]['soc_end'] - busses_charge[bus_code]['charge'])/curr_charge)
+                if end_time == None:
+                    print("Shorted time")
+                    print(start_time, end_time, busses_charge[bus_code]['charge'], curr_charge)
+                offspring[i+4] = int(end_time)
                 return offspring
-    # if there is an underflow charger to bus we add a charge to the bus
+            busses_charge[bus_code]['charge']+= curr_charge
+    # if there is an underflow charging to bus we add a charging to the bus
     for bus in busses_charge:
         if busses_charge[bus_code]['charge'] < busses_charge[bus_code]['soc_end']:
+            e = end_time
             chargerCode 
             connectorId
             start_time
@@ -219,9 +222,16 @@ def add_or_remove_schedule(offspring):
                     big_empty_time = time
                     start_time = prev_empty_time.start
                     end_time = prev_empty_time.end
+                if end_time == None:
+                    print("No end time", busses_charge[bus]["entryTime"])
+                    print(bus_code, start_time, e, ampere)
+
             else:
                 start_time = busses_charge[bus]["entryTime"]
                 end_time = busses_charge[bus]["exitTime"]
+                if end_time == None:
+                    print("No bus exitTime")
+                    print(bus_code, start_time, e, ampere)
             # founding a free charger at the free time
             for charger in chargers_busy:
                 chargers_busy[charger].sort(key=lambda x: x["from"])
@@ -230,9 +240,8 @@ def add_or_remove_schedule(offspring):
                     if time["from"]>prev["to"]and time["to"]<prev["from"]:
                         chargerCode, connectorId = charger
                         break
-
-            price = initialPopulation.calculate_schedule_price(ampere, start_time, end_time, data["prices"], chargers[chargerCode]["voltage"])  
-            offspring.extend([chargerCode, connectorId, bus, start_time, end_time, ampere, price])
+            price = initialPopulation.calculate_schedule_price(ampere, int(start_time), int(end_time), data["prices"], chargers[(chargerCode, connectorId)]["voltage"])  
+            offspring.extend([chargerCode, connectorId, bus, int(start_time), int(end_time), ampere, price])
             break
     return offspring
 

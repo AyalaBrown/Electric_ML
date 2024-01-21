@@ -3,19 +3,17 @@ import readingFromDb
 data = readingFromDb.read_data()
 
 def getFunctionInputsDB():
-    chargers = []
-    busses = []
+    chargers = list(data["chargers"].keys())
+    chargerCodes = []
+    for code in chargers:
+        chargerCodes.append(code[0])
+    busses = list(data["busses"].keys())
     amperes = []
-    for i in range(0, len(data["busses"])):
-        busses.append(data["busses"][i]["trackCode"])
-    u_busses = list(set(busses))
-    for i in range(0, len(data["chargers"])):
-        chargers.append(data["chargers"][i]["chargerCode"])
-    u_chargers = list(set(chargers))
+
     for i in range(0, len(data["amperLevels"])):
         amperes.append(data["amperLevels"][i]["low"]+(data["amperLevels"][i]["high"]-data["amperLevels"][i]["low"])/2)
     u_amperes = list(set(amperes))
-    values = [u_chargers, [1,2], u_busses, None, None, u_amperes, None]
+    values = [chargerCodes, [1,2], busses, None, None, u_amperes, None]
     data["values"] = values
     return data
 
