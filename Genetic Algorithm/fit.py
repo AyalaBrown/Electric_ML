@@ -1,6 +1,4 @@
-import numpy as np
 import initializations
-import convertions
 
 def fitness(solution, min_cost, max_cost):
     # try:
@@ -18,20 +16,23 @@ def fitness(solution, min_cost, max_cost):
     # constraint 4 - A bus charging enough for it's tasks
     # constraint 5 - Prefer the cheapest plan
     # constraint 6 - Charging as little as possible at the high level
+    # constraint 7 - the ampere in each charger dosent over the max ampere of the charger
 
     # weights:
     # constraint 1
-    w1 = 0.20
+    w1 = 0.16
     # constraint 2
-    w2 = 0.20
+    w2 = 0.16
     # constraint 3 
-    w3 = 0.20
+    w3 = 0.16
     # constraint 4
-    w4 = 0.20
+    w4 = 0.16
     # constraint 5
     w5 = 0.12
     # constraint 6
     w6 = 0.8
+    # constraint 7
+    w7 = 0.16
 
     total_cost = 0
 
@@ -56,11 +57,15 @@ def fitness(solution, min_cost, max_cost):
     # constraint 5
     financial_cost = 0
     cost5 = 0
-    #constraint 6
+    # constraint 6
     level1 = 0
     level2 = 0
     level3 = 0
     cost6 = 0
+    # constraint 7
+    chargers_bussy = {charger[0]:{"maxAmpere": chargers[charger]["ampere"], "chargings":[]} for charger in chargers.keys()}
+    good7 = 0
+    not_good7 = 0
 
     for bus in busses.keys():
         busses_charge[bus] = {'charge': 0,'soc_start': busses[bus]['socStart'], 'soc_end': busses[bus]['socEnd']}
@@ -123,6 +128,26 @@ def fitness(solution, min_cost, max_cost):
         if ampereLevels[3]["low"] <= ampere and ampere <= ampereLevels[3]["high"]:
             level3+=1
 
+        # constraint 7
+        chargers_bussy[chargerCode]["chargings"].append({"time": start_time, "type": "start", "ampere": ampere})
+        chargers_bussy[chargerCode]["chargings"].append({"time": end_time, "type": "end", "ampere": ampere})
+
+    for charger in chargers_bussy:
+        if len(chargers_bussy[charger]["chargings"]) > 0:
+            chargers_bussy[charger]["chargings"] = sorted(chargers_bussy[charger]["chargings"], key=lambda x: x["time"])
+            currAmpere = 0 
+            maxAmpere = chargers_bussy[charger]["maxAmpere"]
+            for charging in chargers_bussy[charger]["chargings"]:
+                if charging["type"] == "start":
+                    currAmpere+=charging["ampere"] 
+                    if currAmpere>maxAmpere:
+                        not_good7+=1
+                    else:
+                        good7+=1
+                else:
+                    currAmpere-=charging["ampere"] 
+
+
     sum_of_schedules = good1+not_good1
     cost1 = w1*not_good1/(good1+not_good1)
     cost2 = w2*not_good2/(good2+not_good2)
@@ -130,7 +155,8 @@ def fitness(solution, min_cost, max_cost):
     cost4 = w4*not_good4/(good4+not_good4)
     cost5 = w5*(financial_cost-min_cost)/(max_cost-min_cost)
     cost6 = w6*(level1/sum_of_schedules+0.5*level2/sum_of_schedules+0.25*level3/sum_of_schedules)
-    total_cost = cost1 + cost2 + cost3 + cost4 + cost5 + cost6
+    cost7 = w7*not_good7/(good7+not_good7)
+    total_cost = cost1 + cost2 + cost3 + cost4 + cost5 + cost6 + cost7
     return total_cost
     # except Exception as e:
     #     print("error!!!!!!!!", e)

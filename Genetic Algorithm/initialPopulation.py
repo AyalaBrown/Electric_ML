@@ -9,7 +9,6 @@ amperLevels = inputs["amperLevels"]
 
 def init_pop(npop):
     pop = []
-    chargers_bussy = {chargers[charger]:{"ampere":0} for charger in chargers}
     for i in range(npop):
         sol = []
         for j in busses.keys():
@@ -29,7 +28,7 @@ def init_pop(npop):
                         break
                 amperLevel = random.randint(max_ampere_level, 5)
                 ampere = amperLevels[amperLevel-1]["low"]+(amperLevels[amperLevel-1]["high"]-amperLevels[amperLevel-1]["low"])/2
-                price = calculate_schedule_price(ampere, startTime, endTime, prices, charger["voltage"])
+                price = calculate_schedule_price(ampere, startTime, endTime, prices, chargers[charger_]["voltage"])
                 sol.append({"chargerCode": charger_code, "connectorId": connector_id, "trackCode": j, "startTime": startTime, "endTime": endTime, "ampere": ampere, "price": price})
         pop.append(sol)
     return pop

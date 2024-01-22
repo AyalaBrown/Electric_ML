@@ -168,7 +168,7 @@ def add_or_remove_schedule(offspring):
         chargerCode, connectorId, bus_code, start_time, end_time, ampere, price = offspring[i:i+7]
 
         chargers_busy.setdefault((chargerCode, connectorId), []).append({"from": start_time, "to": end_time})
-        bus_busy.setdefault(bus_code, []).append({"from": start_time, "to": end_time})
+        bus_busy.setdefault(bus_code, []).append({"charger":(chargerCode, connectorId) ,"from": start_time, "to": end_time, "ampere": ampere})
 
         if bus_code not in busses_charge:
             raise Exception("Bus code not found")
@@ -178,28 +178,103 @@ def add_or_remove_schedule(offspring):
         if bus_code in capacity:
             curr_charge = charging_time / 1000 / 60 * ampere * chargers[(chargerCode, connectorId)]["voltage"] / 1000 / capacity[int(bus_code)]
             busses_charge[bus_code]['charge'] 
-
             if (busses_charge[bus_code]['charge'] + curr_charge)> 95:
                 end_time = start_time + int(charging_time*(busses_charge[bus_code]['soc_end'] - busses_charge[bus_code]['charge'])/curr_charge)
                 if end_time == None:
                     print("Shorted time")
                     print(start_time, end_time, busses_charge[bus_code]['charge'], curr_charge)
+                price = initialPopulation.calculate_schedule_price(ampere, int(start_time), int(end_time), data["prices"], chargers[(chargerCode, connectorId)]["voltage"])  
                 offspring[i+4] = int(end_time)
+                offspring[i+6] = price
                 return offspring
             busses_charge[bus_code]['charge']+= curr_charge
-    # if there is an underflow charging to bus we add a charging to the bus
+    for charger in chargers_busy:
+        chargers_busy[charger] = sorted(chargers_busy[charger], key=lambda x: x['from'])
+    # if there is an underflow charging to a bus we add a charging to it
     for bus in busses_charge:
-        if busses_charge[bus_code]['charge'] < busses_charge[bus_code]['soc_end']:
+        if busses_charge[bus]['charge'] < busses_charge[bus]['soc_end']:
             e = end_time
             chargerCode 
             connectorId
             start_time
             end_time
-            # random ampere
-            ampereLevel = random.choice(amperLevels)
+
+            # checking if I can extend the current charging time
+            # busses_charge[bus]: {'charge': 45.00935488806509, 'entryTime': 1704643140000.0, 'exitTime': 1704685800000.0, 'soc_start': 40.085845947265625, 'soc_end': 62.22853469848633}
+            curr_bus_busy = [] # all the chergings of this bus
+            if bus in bus_busy:
+                curr_bus_busy = bus_busy[bus]
+            if len(curr_bus_busy) > 0: # if this bus alredy has at list one charging
+                curr_bus_busy = sorted(curr_bus_busy, key=lambda x: x["from"])
+                prev_slot_start_bus = busses_charge[bus]['entryTime']
+                for i in range(0, len(curr_bus_busy)): # checking if there is a slot of time that the charger is empty
+                    prev_slot_end_bus = curr_bus_busy[i]["from"]
+                    prev_slot_bus = prev_slot_end_bus-prev_slot_start_bus
+                    next_slot_start_bus = curr_bus_busy[i]['to']
+                    next_slot_end_bus = curr_bus_busy[i+1]['from'] if len(curr_bus_busy)>(i+1) else busses_charge[bus]['exitTime']
+                    next_slot_bus = next_slot_end_bus-next_slot_start_bus
+                    if prev_slot_bus > 0: # if i have a contigouse time to add to the bus
+                        # 'from' and 'to' in chargers and busses
+                        curr_charger_schedules = chargers_busy[curr_bus_busy[i]['charger']]
+                        slot_start_charger = 0
+                        for j in range(0, len(curr_charger_schedules)):
+                            slot_end_charger = curr_charger_schedules[j]["from"]
+                            if prev_slot_end_bus <= slot_end_charger: # if i can extend the charging to start early
+                                start = prev_slot_start_bus if prev_slot_start_bus >= slot_start_charger else slot_start_charger
+                                # random ampere
+                                chargerAmpere = chargers[curr_bus_busy[i]['charger']]["ampere"]
+                                max_ampere_level = 1
+                                for k in range(0, 5):
+                                    if amperLevels[k]["low"] <= chargerAmpere and chargerAmpere <= amperLevels[k]["high"]:
+                                        max_ampere_level = k+1
+                                        break
+                                ampereLevel = amperLevels[random.randint(max_ampere_level, 5)-1]
+                                ampere = ampereLevel["low"]+(ampereLevel["high"]-ampereLevel["low"])/2
+                                if ampere == curr_bus_busy[i]['ampere']:
+                                    price = initialPopulation.calculate_schedule_price(ampere, int(start), int(curr_bus_busy[i]["to"]), data["prices"], chargers[curr_bus_busy[i]['charger']]["voltage"])  
+                                    for n in range(0, len(offspring), 7):
+                                        chargerCode, connectorId, bus_code, start_time, end_time, ampere, price = offspring[n:n+7]
+                                        if chargerCode == curr_bus_busy[i]['charger'][0] and connectorId == curr_bus_busy[i]['charger'][1] and start_time == curr_bus_busy[i]['from'] and end_time == curr_bus_busy[i]['to']:
+                                            offspring[n+3] = int(start)
+                                            offspring[n+6] = price
+                                            return offspring
+                                else:
+                                    price = initialPopulation.calculate_schedule_price(ampere, start, prev_slot_end_bus, data["prices"],chargers[curr_bus_busy[i]['charger']]["voltage"])
+                                    offspring.extend([chargerCode, connectorId, bus, int(start), int(prev_slot_end_bus), ampere, price])
+                                    return offspring
+                            slot_end_charger = curr_charger_schedules[j]["to"] 
+                    prev_slot_end_bus = curr_bus_busy[i]["to"]
+                    if next_slot_bus > 0:
+                        curr_charger_schedules = chargers_busy[curr_bus_busy[i]['charger']]
+                        slot_start_charger = 0
+                        for j in range(0, len(curr_charger_schedules)):
+                            slot_end_charger = curr_charger_schedules[j]["from"]
+                            if next_slot_start_bus >= slot_start_charger: # if I can extend the charging to end later
+                                end = next_slot_end_bus if next_slot_end_bus <= slot_start_charger else slot_end_charger
+                                # random ampere
+                                chargerAmpere = chargers[curr_bus_busy[i]['charger']]["ampere"]
+                                max_ampere_level = 1
+                                for k in range(0, 5):
+                                    if amperLevels[k]["low"] <= chargerAmpere and chargerAmpere <= amperLevels[k]["high"]:
+                                        max_ampere_level = k+1
+                                        break
+                                ampereLevel = amperLevels[random.randint(max_ampere_level, 5)-1]
+                                ampere = ampereLevel["low"]+(ampereLevel["high"]-ampereLevel["low"])/2
+                                if ampere == curr_bus_busy[i]['ampere']:
+                                    price = initialPopulation.calculate_schedule_price(ampere, int(curr_bus_busy[i]["from"]), int(end), data["prices"], chargers[curr_bus_busy[i]['charger']]["voltage"])  
+                                    for n in range(0, len(offspring), 7):
+                                        chargerCode, connectorId, bus_code, start_time, end_time, ampere, price = offspring[n:n+7]
+                                        if chargerCode == curr_bus_busy[i]['charger'][0] and connectorId == curr_bus_busy[i]['charger'][1] and start_time == curr_bus_busy[i]['from'] and end_time == curr_bus_busy[i]['to']:
+                                            offspring[n+4] = int(end)
+                                            offspring[n+6] = price
+                                            return offspring
+                                else:
+                                    price = initialPopulation.calculate_schedule_price(ampere, next_slot_start_bus, end, data["prices"],chargers[curr_bus_busy[i]['charger']]["voltage"])
+                                    offspring.extend([chargerCode, connectorId, bus, int(next_slot_start_bus), int(end), ampere, price])
+                                    return offspring
+                            slot_end_charger = curr_charger_schedules[j]["to"]
 
             # founding the biggest slot of time
-            ampere = ampereLevel["low"]+(ampereLevel["high"]-ampereLevel["low"])/2
             prev_empty_time = structure()
             prev_empty_time.start = 0
             prev_empty_time.end = busses_charge[bus]["entryTime"]
@@ -240,7 +315,19 @@ def add_or_remove_schedule(offspring):
                     if time["from"]>prev["to"]and time["to"]<prev["from"]:
                         chargerCode, connectorId = charger
                         break
+
+            # random ampere
+            chargerAmpere = chargers[(chargerCode, connectorId)]["ampere"]
+            max_ampere_level = 1
+            for i in range(0, 5):
+                if amperLevels[i]["low"] <= chargerAmpere and chargerAmpere <= amperLevels[i]["high"]:
+                    max_ampere_level = i+1
+                    break
+            ampereLevel = amperLevels[random.randint(max_ampere_level, 5)-1]
+            ampere = ampereLevel["low"]+(ampereLevel["high"]-ampereLevel["low"])/2
+
             price = initialPopulation.calculate_schedule_price(ampere, int(start_time), int(end_time), data["prices"], chargers[(chargerCode, connectorId)]["voltage"])  
+            
             offspring.extend([chargerCode, connectorId, bus, int(start_time), int(end_time), ampere, price])
             break
     return offspring
