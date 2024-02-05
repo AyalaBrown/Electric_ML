@@ -1,9 +1,14 @@
 const tf = require('@tensorflow/tfjs');
-const {training} = require('./wish.js')
+const {training} = require('./train.js')
 const fs = require('fs');
 const { saveToDb} = require('./readingFromDB.js');
 
 async function runModel(data) {
+    console.log("Starting model training...");
+    // console.log(tf.getBackend());
+    // tf.setBackend('gpu');
+    // console.log(tf.getBackend());
+
     let i = 0;
     const Busses = [...new Set(data.map(row => row.idtag))];
     // let bus = "14:1F:BA:10:7F:79"
@@ -15,6 +20,7 @@ async function runModel(data) {
             return;
         }
         const levels = [...new Set(filteredData.map(row => row.amperLevel))];
+        console.log(levels)
         for(const level of levels) {
             filteredData = data.filter((row) => row.amperLevel === level);    
             if (filteredData.length === 0) {

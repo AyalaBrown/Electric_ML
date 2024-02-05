@@ -8,7 +8,7 @@ const config = {
   server: '192.168.16.3',
   database: 'electric_ML',
   options: {
-    encrypt: false, // For Azure SQL Database
+    encrypt: false, 
   },
 };
 
