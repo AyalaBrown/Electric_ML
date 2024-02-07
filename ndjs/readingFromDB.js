@@ -10,15 +10,14 @@ const config = {
         },
       };
 
-async function readDataDB() {
-
+async function readDataDB(fromDate, toDate) {
     try {
         // Connect to the database
         await sql.connect(config);
 
         // Query to select data from your table
-        const result = await sql.query`exec dbo.GetElectricPointChargeDetails_acc '20230101','20231230'`;
-
+        const result = await sql.query`exec dbo.GetElectricPointChargeDetails_acc ${fromDate}, ${toDate}`;
+        
         // Map the result to an array of objects
         const data = result.recordset;
 
@@ -33,8 +32,27 @@ async function readDataDB() {
     }
 }
 
-async function saveToDb(key, xml) {
+async function readBusesCapacity() {
+    try {
+        // Connect to the database
+        await sql.connect(config);
 
+        // Query to select data from your table
+        const result = await sql.query`exec dbo.GetElectricCapacity`;
+
+        // Map the result to an array of objects
+        const buses = result.recordset;
+
+        return buses;
+    } catch (err) {
+        console.error('Error reading buses capacity from SQL Server:', err.message);
+        throw err;
+    } finally {
+        await sql.close();
+    }
+}
+
+async function saveToDb(key, xml) {
     try {
         await sql.connect(config);
 
@@ -45,7 +63,6 @@ async function saveToDb(key, xml) {
 
         await request.query`exec UpsertModels ${key},${xml}`;
 
-        console.log(`${key} saving to DB`);
         await transaction.commit();
     } catch (err) {
         console.error('Error saving data to SQL Server:', err.message);
@@ -57,5 +74,6 @@ async function saveToDb(key, xml) {
 
 module.exports = {
     readDataDB,
+    readBusesCapacity,
     saveToDb,
 };

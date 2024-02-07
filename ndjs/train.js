@@ -60,9 +60,9 @@ function normelizeRow(name, tmpName, data, multiplier) {
     } else {
       return normalizeValue(data[name["name"]], tmpName, multiplier);
     }
-  }
+}
   
-  function normalizeValue(value, tmpName, multiplier) {
+function normalizeValue(value, tmpName, multiplier) {
     if (tmpName.max && tmpName.min) {
       if (tmpName.max === tmpName.min) {
         tmpName.max += 1;
@@ -74,7 +74,7 @@ function normelizeRow(name, tmpName, data, multiplier) {
       // Handle other cases or return a default value
       return value;
     }
-  }
+}
 
 function normelizeData(_trainingData, input, nameOutputData, outputData, multiplier) {
     return tf.tensor(_trainingData.map(data =>
