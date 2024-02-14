@@ -293,24 +293,20 @@ async function training(post){
                 }
 
                 for (let i = 0; i < outputData.model.outputs.output.length; i++){
+                    console.log("error: ", valHistory[cycles * dataEpochs - 1 + i]);
                     outputData.model.outputs.output[i]["$"]["error"] = valHistory[cycles * dataEpochs - 1 + i];
                 }
 
             } else await fit();
         }
         await fit();
-
-        console.log("I'm here...");
         const builder = new Builder({ headless: true, explicitRoot: false, rootName: 'root', xmldec: { encoding: 'utf-8' } });
-
         return builder.buildObject(outputData);
     }
     catch (err) {
         dataRet.message = 'external ERROR';
-        // dataRet.console = logs;
         dataRet.status = 'ERROR';
         process.stdout.write(JSON.stringify(dataRet))
-        // process.stdout.flush();
         return;
     }
     // const filePath = `./xml/${post["setting"]["name"]}.xml`;

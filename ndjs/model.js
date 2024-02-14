@@ -1,66 +1,33 @@
 const tf = require('@tensorflow/tfjs');
 const {training} = require('./train.js')
-const fs = require('fs');
 const { saveToDb} = require('./readingFromDB.js');
 const { Builder} = require('xml2js');
 
 async function runModel(data, busesCapacity) {
-    console.log("Starting model training...");
-    // console.log(tf.getBackend());
-    // tf.setBackend('gpu');
-    // console.log(tf.getBackend());
+    let median = [[],[],[],[],[]];
+    let noData = [[],[],[],[],[]];
 
-    let i = 0;
+    console.log("Starting model training...");
+
     const Busses = [...new Set(data.map(row => row.idtag))];
-    // let bus = "14:1F:BA:10:7F:79"
-    // let level = 3;
     for (const bus of Busses) {
-        let filteredData = data.filter((row) => row.idtag === bus);
-        if (filteredData.length === 0) {
+        let filteredData_bus = data.filter((row) => row.idtag === bus);
+        if (filteredData_bus.length === 0) {
             console.log(`No data found with idtag ${bus}.`);
             return;
         }
-        // const capacity = busesCapacity.where(row => row.trackCode == bus);
-        const capacity = 300;
-        const levels = [...new Set(filteredData.map(row => row.amperLevel))];
-        console.log(levels)
+        const levels = [...new Set(filteredData_bus.map(row => row.amperLevel))];
+        
         for(let j = 1; j <=5; j++) {
-            console.log("level",j)
             //if there is no data for this bus and level, putting avg instead
-            if((j in levels) == false) {
-                console.log("simple avg")
-                average = 0
-                // <model type="simple avg">
-                //     <outputs>
-                //         <output name="consumption" min="13.67600000" max="25.33000000" avg="20.20850000" error="28.83" />
-                //     </outputs>
-                // </model>
-                outputData = {
-                    model: {
-                        '$': { type: 'simple avg1'},
-                        inputs: {input: [{$:{name: 'soc'}}]},
-                        outputs: { output: [{$:{name:'duration', avg: average}}] },
-                    }
-                }
-
-
-
-                const builder = new Builder({ headless: true, explicitRoot: false, rootName: 'root', xmldec: { encoding: 'utf-8' } });
-
-                const xml = builder.buildObject(outputData);
-
-                const singleLineString = xml.replace(/\n\s*/g, '');
-
-                saveToDb(`${bus},${j}`, singleLineString);
-
-                i++;
-
+            if(levels.includes(j) == false) {
+                noData[j-1].push(bus);
                 continue;
             }
 
             level = j;
 
-            filteredData = data.filter((row) => row.amperLevel === level);   
+            filteredData = filteredData_bus.filter((row) => row.amperLevel === level);  
 
             if (filteredData.length === 0) {
                 console.log(`No data found with bus ${bus} and level ${level}.`);
@@ -68,34 +35,35 @@ async function runModel(data, busesCapacity) {
             }
             
             if (filteredData.length <10) {
-                console.log("simple avg", filteredData);
-                avg = 0
-                // <model type="simple avg">
-                //     <outputs>
-                //         <output name="consumption" min="13.67600000" max="25.33000000" avg="20.20850000" error="28.83" />
-                //     </outputs>
-                // </model>
-                outputData = {
-                    model: {
-                        '$': { type: 'simple avg1'},
-                        inputs: {input: [{$:{name: 'soc'}}]},
-                        outputs: { output: [{$:{name:'duration', avg: average}}] },
+                distinctSoc = [];
+                avgs = []
+                med = 0;
+                for(let k = 0; k < filteredData.length; k++) {
+                    if ((filteredData[k]['soc'] in distinctSoc)==false) {
+                        distinctSoc.push(filteredData[k]['soc']);
+                        avgs.push(parseInt(filteredData[k]['avgDiffInSec']));
                     }
                 }
-
-                console.log("less then 10", filteredData)
-
-
+                avgs.sort((a, b) => a - b);
+                if (avgs.length%2 == 0){
+                    med = (avgs[avgs.length/2]+avgs[avgs.length/2-1])/2;
+                }
+                else{
+                    med = avgs[Math.floor(avgs.length/2)];
+                }
+                outputData = {
+                    model: {
+                        '$': { type: 'simple avg2'},
+                        inputs: {input: [{$:{name: 'soc'}}]},
+                        outputs: { output: [{$:{name:'scaled', avg: med}}] },
+                    }
+                }
+                console.log("less then 10, average", med);
                 const builder = new Builder({ headless: true, explicitRoot: false, rootName: 'root', xmldec: { encoding: 'utf-8' } });
-
                 const xml = builder.buildObject(outputData);
-
                 const singleLineString = xml.replace(/\n\s*/g, '');
-
-                saveToDb(`${bus},${j}`, singleLineString);
-
-                i++;
-
+                await saveToDb(`${bus},${j}`, singleLineString);
+                median[j-1].push(parseInt(med));
                 continue;
             } 
 
@@ -149,19 +117,37 @@ async function runModel(data, busesCapacity) {
                     ]
                 },
             }
-
             const xml = await training(post);
-            // return xml;
-
             const singleLineString = xml.replace(/\n\s*/g, '');
-
-            console.log("singleLineString");
-
-            saveToDb(`${bus},${level}`, singleLineString);
-            
-            i++;
+            await saveToDb(`${bus},${level}`, singleLineString);
+            median[j-1].push(parseInt(filteredData[0]['avgDiffInSec']));
         }
     }
+    for(i = 0; i < 5; i++){
+        med = 0;
+        median[i].sort((a, b) => a - b);
+        if(median[i].length % 2 == 0){
+            med = (median[i][median[i].length/2-1]+median[i][median[i].length/2])/2;
+        }
+        else{
+            med = median[i][Math.floor(median[i].length/2)];
+        }
+        for(j in noData[i]){
+            outputData = {
+                model: {
+                    '$': { type: 'simple avg2'},
+                    inputs: {input: [{$:{name: 'soc'}}]},
+                    outputs: { output: [{$:{name:'scaled', avg: med}}] },
+                }
+            }
+            const builder = new Builder({ headless: true, explicitRoot: false, rootName: 'root', xmldec: { encoding: 'utf-8' }});
+            const xml = builder.buildObject(outputData);
+            const singleLineString = xml.replace(/\n\s*/g, '');
+            console.log(singleLineString)
+            await saveToDb(`${noData[i][j]},${i+1}`, singleLineString);
+            continue;
+        }
+   }
 }
 
 module.exports = {

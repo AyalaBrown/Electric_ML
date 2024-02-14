@@ -64,6 +64,8 @@ async function saveToDb(key, xml) {
         await request.query`exec UpsertModels ${key},${xml}`;
 
         await transaction.commit();
+
+        console.log(`Successfully saving ${key}`);
     } catch (err) {
         console.error('Error saving data to SQL Server:', err.message);
         throw err;

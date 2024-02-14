@@ -7,5 +7,5 @@ async function run(fromDate, toDate){
     return await runModel(data, busesCapacity);
 }
 
-run('20230101','20240206')
+run('20230101','20240212')
 
