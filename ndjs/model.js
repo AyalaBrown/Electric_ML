@@ -29,18 +29,35 @@ async function runModel(data, busesCapacity) {
 
             filteredData = filteredData_bus.filter((row) => row.amperLevel === level);  
 
+            const uniqueSocValues = {};
+
+            // Iterate through the array and add 'soc' values to the object
+            filteredData.forEach(item => {
+            uniqueSocValues[item.soc] = 0;
+            });
+
+            // Get the count of distinct 'soc' values
+            const distinctSocCount = Object.keys(uniqueSocValues).length;
+
+            console.log("distinctSocCount: ", distinctSocCount);
+
             if (filteredData.length === 0) {
                 console.log(`No data found with bus ${bus} and level ${level}.`);
                 return;
             }
             
-            if (filteredData.length <10) {
-                distinctSoc = [];
-                avgs = []
-                med = 0;
+            if (distinctSocCount < 50) {
+                if (distinctSocCount < 5){
+                    noData[j-1].push(bus);
+                    continue;
+                }
+                let distinctSoc = [];
+                let avgs = []
+                let med = 0;
                 for(let k = 0; k < filteredData.length; k++) {
-                    if ((filteredData[k]['soc'] in distinctSoc)==false) {
-                        distinctSoc.push(filteredData[k]['soc']);
+                    let soc = filteredData[k]['soc'];
+                    if ((soc in distinctSoc)==false) {
+                        distinctSoc.push(soc);
                         avgs.push(parseInt(filteredData[k]['avgDiffInSec']));
                     }
                 }
