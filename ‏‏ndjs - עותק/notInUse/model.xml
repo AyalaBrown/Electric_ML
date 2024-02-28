@@ -1,0 +1,48 @@
+<model type="neural net">
+  <inputs>
+    <input name="dw" decrement="1.000000" devider="6.000000" type="CONSTANT" />
+    <input name="hh" decrement="0.000000" devider="24.000000" type="CONSTANT" />
+    <input name="stopCount" decrement="0.000000" devider="50.000000" type="CONSTANT" />
+    <input name="duration" decrement="0.000000" devider="5000000.000000" type="CONSTANT" />
+    <input name="length" decrement="0.000000" devider="50000.000000" type="CONSTANT" />
+  </inputs>
+  <outputs>
+    <output name="consumption" error="0.03" decrement="0.000000" devider="30.000000" type="CONSTANT" />
+  </outputs>
+  <net>
+    <layer activation="SIGMOID">
+      <neuron>
+        <w>0.09334171563386917</w>
+        <w>-0.008104167878627777</w>
+        <w>-0.826951801776886</w>
+        <w>0.19033686816692352</w>
+        <w>0.6462565660476685</w>
+        <w>0.11175461113452911</w>
+      </neuron>
+      <neuron>
+        <w>0.22061115503311157</w>
+        <w>0.4123823642730713</w>
+        <w>0.5205898284912109</w>
+        <w>0.41239428520202637</w>
+        <w>-0.6334023475646973</w>
+        <w>-0.7093300819396973</w>
+      </neuron>
+      <neuron>
+        <w>0.09412278234958649</w>
+        <w>0.4190206527709961</w>
+        <w>-0.8549792766571045</w>
+        <w>0.06426083296537399</w>
+        <w>0.12088748067617416</w>
+        <w>0.3442414104938507</w>
+      </neuron>
+    </layer>
+    <layer activation="LINEAR">
+      <neuron>
+        <w>0.11883735656738281</w>
+        <w>1.1670423746109009</w>
+        <w>-0.6987031698226929</w>
+        <w>0.539645791053772</w>
+      </neuron>
+    </layer>
+  </net>
+</model>
